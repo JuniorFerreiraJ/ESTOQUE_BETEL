@@ -49,9 +49,6 @@ export default function InventoryHistory({ history, onUpdate }: InventoryHistory
 
   return (
     <div className="bg-white rounded-lg shadow">
-      <div className="p-4 border-b">
-        <h2 className="text-lg font-semibold">Histórico de Movimentações</h2>
-      </div>
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
