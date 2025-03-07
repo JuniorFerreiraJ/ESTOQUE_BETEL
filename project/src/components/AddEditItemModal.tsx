@@ -40,24 +40,43 @@ export default function AddEditItemModal({
     observation: ''
   });
 
+  const [error, setError] = useState('');
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+
     try {
       if (editItem) {
-        // Se estiver editando e houver movimentação de estoque
+        let newQuantity = formData.current_quantity;
+
         if (stockMovement.quantity > 0) {
-          const newQuantity = stockMovement.type === 'entrada'
+          newQuantity = stockMovement.type === 'entrada'
             ? formData.current_quantity + stockMovement.quantity
             : formData.current_quantity - stockMovement.quantity;
 
+          if (newQuantity < 0) {
+            setError('A quantidade não pode ficar negativa');
+            return;
+          }
+
           // Atualiza o item
-          await supabase
+          const { error: updateError } = await supabase
             .from('inventory_items')
-            .update({ ...formData, current_quantity: newQuantity })
+            .update({
+              name: formData.name,
+              category_id: formData.category_id,
+              department_id: formData.department_id,
+              current_quantity: newQuantity,
+              minimum_quantity: formData.minimum_quantity,
+              updated_at: new Date().toISOString()
+            })
             .eq('id', editItem.id);
 
+          if (updateError) throw updateError;
+
           // Registra o histórico
-          await supabase
+          const { error: historyError } = await supabase
             .from('inventory_history')
             .insert([{
               item_name: formData.name,
@@ -65,38 +84,65 @@ export default function AddEditItemModal({
               type: stockMovement.type,
               observation: stockMovement.observation
             }]);
+
+          if (historyError) throw historyError;
         } else {
           // Se não houver movimentação, apenas atualiza os dados do item
-          await supabase
+          const { error } = await supabase
             .from('inventory_items')
-            .update(formData)
+            .update({
+              name: formData.name,
+              category_id: formData.category_id,
+              department_id: formData.department_id,
+              minimum_quantity: formData.minimum_quantity,
+              updated_at: new Date().toISOString()
+            })
             .eq('id', editItem.id);
+
+          if (error) throw error;
         }
       } else {
         // Criando novo item
-        await supabase
+        if (formData.current_quantity < 0) {
+          setError('A quantidade inicial não pode ser negativa');
+          return;
+        }
+
+        const { error } = await supabase
           .from('inventory_items')
-          .insert([formData]);
+          .insert([{
+            name: formData.name,
+            category_id: formData.category_id,
+            department_id: formData.department_id,
+            current_quantity: formData.current_quantity,
+            minimum_quantity: formData.minimum_quantity,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }]);
+
+        if (error) throw error;
       }
+
       onSuccess();
       onClose();
-    } catch (error) {
-      console.error('Error saving item:', error);
+    } catch (err: any) {
+      setError(err.message || 'Erro ao salvar o item');
+      console.error('Error saving item:', err);
     }
   };
 
-  const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>, field: 'current_quantity' | 'minimum_quantity' | 'movement_quantity') => {
-    const value = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
+  const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
+    const value = parseInt(e.target.value || '0', 10);
     
     if (field === 'movement_quantity') {
       setStockMovement(prev => ({
         ...prev,
-        quantity: isNaN(value) ? 0 : value
+        quantity: isNaN(value) ? 0 : Math.max(0, value)
       }));
     } else {
       setFormData(prev => ({
         ...prev,
-        [field]: isNaN(value) ? 0 : value
+        [field]: isNaN(value) ? 0 : Math.max(0, value)
       }));
     }
   };
@@ -105,7 +151,7 @@ export default function AddEditItemModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md transform transition-all duration-300">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold">
             {editItem ? 'Editar Item' : 'Novo Item'}
@@ -117,6 +163,12 @@ export default function AddEditItemModal({
             <X className="h-6 w-6" />
           </button>
         </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-md text-sm">
+            {error}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

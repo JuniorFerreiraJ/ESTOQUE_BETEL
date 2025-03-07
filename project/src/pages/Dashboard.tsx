@@ -12,7 +12,6 @@ function Dashboard() {
   const [activeTab, setActiveTab] = useState('Todos');
   const [activeDepartment, setActiveDepartment] = useState('Todos');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showChartModal, setShowChartModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
@@ -31,16 +30,12 @@ function Dashboard() {
     fetchItems();
     fetchHistory();
 
-    // Handle hash change
     const handleHashChange = () => {
       const hash = window.location.hash.slice(1) || 'dashboard';
       setActiveSection(hash);
     };
 
-    // Set initial section from hash
     handleHashChange();
-
-    // Listen for hash changes
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
@@ -81,14 +76,16 @@ function Dashboard() {
 
   const handleDeleteItem = async (itemId: string) => {
     try {
-      await supabase
+      const { error } = await supabase
         .from('inventory_items')
         .delete()
         .eq('id', itemId);
+
+      if (error) throw error;
       
       setDeleteConfirmation(null);
-      fetchItems();
-      fetchHistory();
+      await fetchItems();
+      await fetchHistory();
     } catch (error) {
       console.error('Error deleting item:', error);
     }
@@ -99,13 +96,19 @@ function Dashboard() {
     setShowAddModal(true);
   };
 
+  const handleModalSuccess = async () => {
+    await fetchItems();
+    await fetchHistory();
+    setShowAddModal(false);
+    setSelectedItem(null);
+  };
+
   const filteredItems = items.filter(item => {
-    const matchesCategory = activeTab === 'Todos' || item.categories.name === activeTab;
-    const matchesDepartment = activeDepartment === 'Todos' || (item.departments && item.departments.name === activeDepartment);
+    const matchesCategory = activeTab === 'Todos' || item.categories?.name === activeTab;
+    const matchesDepartment = activeDepartment === 'Todos' || item.departments?.name === activeDepartment;
     return matchesCategory && matchesDepartment;
   });
 
-  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
@@ -432,12 +435,25 @@ function Dashboard() {
 
   return (
     <div>
-      {/* Render active section */}
       {activeSection === 'dashboard' && renderDashboardSection()}
       {activeSection === 'inventory' && renderInventorySection()}
       {activeSection === 'history' && renderHistorySection()}
       {activeSection === 'analytics' && renderAnalyticsSection()}
       {activeSection === 'management' && renderManagementSection()}
+
+      {showAddModal && (
+        <AddEditItemModal
+          isOpen={showAddModal}
+          onClose={() => {
+            setShowAddModal(false);
+            setSelectedItem(null);
+          }}
+          onSuccess={handleModalSuccess}
+          categories={categories}
+          departments={departments}
+          editItem={selectedItem}
+        />
+      )}
 
       {showCategoryModal && (
         <CategoryDepartmentModal
