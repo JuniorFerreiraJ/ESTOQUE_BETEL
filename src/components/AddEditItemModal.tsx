@@ -232,191 +232,199 @@ export default function AddEditItemModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-6 pb-4 border-b">
+          <h2 className="text-2xl font-semibold text-gray-800">
             {editItem ? 'Editar Item' : 'Adicionar Item'}
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
+            className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
           >
             <X className="h-6 w-6" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Nome do Item
-            </label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
-              required
-            />
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            {error}
           </div>
+        )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Categoria
-            </label>
-            <select
-              value={formData.category_id}
-              onChange={(e) => setFormData(prev => ({ ...prev, category_id: e.target.value }))}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
-              required
-            >
-              <option value="">Selecione uma categoria</option>
-              {categories.map(category => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Departamento
-            </label>
-            <select
-              value={formData.department_id}
-              onChange={(e) => setFormData(prev => ({ ...prev, department_id: e.target.value }))}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
-              required
-            >
-              <option value="">Selecione um departamento</option>
-              {departments.map(department => (
-                <option key={department.id} value={department.id}>
-                  {department.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {!editItem && (
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Quantidade Inicial
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Nome do Item
               </label>
               <input
-                type="number"
-                value={formData.current_quantity}
-                onChange={(e) => handleNumberChange(e, 'current_quantity')}
-                min="0"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 transition-colors duration-200"
+                required
               />
             </div>
-          )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Quantidade Mínima
-            </label>
-            <input
-              type="number"
-              value={formData.minimum_quantity}
-              onChange={(e) => handleNumberChange(e, 'minimum_quantity')}
-              min="0"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
-            />
-          </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Categoria
+              </label>
+              <select
+                value={formData.category_id}
+                onChange={(e) => setFormData(prev => ({ ...prev, category_id: e.target.value }))}
+                className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 transition-colors duration-200"
+                required
+              >
+                <option value="">Selecione uma categoria</option>
+                {categories.map(category => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          {editItem && (
-            <div className="border-t pt-4">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Movimentação de Estoque
-              </h3>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Departamento
+              </label>
+              <select
+                value={formData.department_id}
+                onChange={(e) => setFormData(prev => ({ ...prev, department_id: e.target.value }))}
+                className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 transition-colors duration-200"
+                required
+              >
+                <option value="">Selecione um departamento</option>
+                {departments.map(department => (
+                  <option key={department.id} value={department.id}>
+                    {department.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-              <div className="flex items-center space-x-4 mb-4">
-                <button
-                  type="button"
-                  onClick={() => setStockMovement(prev => ({ ...prev, type: 'entrada' }))}
-                  className={`flex items-center px-3 py-2 rounded-md ${
-                    stockMovement.type === 'entrada'
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-gray-100 text-gray-700'
-                  }`}
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Entrada
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setStockMovement(prev => ({ ...prev, type: 'saída' }))}
-                  className={`flex items-center px-3 py-2 rounded-md ${
-                    stockMovement.type === 'saída'
-                      ? 'bg-red-100 text-red-700'
-                      : 'bg-gray-100 text-gray-700'
-                  }`}
-                >
-                  <Minus className="h-4 w-4 mr-1" />
-                  Saída
-                </button>
-              </div>
-
+            {!editItem ? (
               <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Quantidade
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Quantidade Inicial
                 </label>
                 <input
                   type="number"
-                  value={stockMovement.quantity}
-                  onChange={(e) => handleNumberChange(e, 'quantity')}
+                  value={formData.current_quantity}
+                  onChange={(e) => handleNumberChange(e, 'current_quantity')}
                   min="0"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                  className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 transition-colors duration-200"
                 />
               </div>
+            ) : null}
 
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700">
-                  Observação
-                </label>
-                <textarea
-                  value={stockMovement.observation}
-                  onChange={(e) => setStockMovement(prev => ({ ...prev, observation: e.target.value }))}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
-                  rows={3}
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Quantidade Mínima
+              </label>
+              <input
+                type="number"
+                value={formData.minimum_quantity}
+                onChange={(e) => handleNumberChange(e, 'minimum_quantity')}
+                min="0"
+                className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 transition-colors duration-200"
+              />
+            </div>
+          </div>
 
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700">
-                  Nome do Usuário
-                </label>
-                <input
-                  type="text"
-                  value={stockMovement.user_name}
-                  onChange={(e) => setStockMovement(prev => ({ ...prev, user_name: e.target.value }))}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
-                />
+          {editItem && (
+            <div className="mt-8 pt-6 border-t">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                Movimentação de Estoque
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="col-span-2">
+                  <div className="flex items-center space-x-4 mb-4 bg-gray-50 p-3 rounded-lg">
+                    <button
+                      type="button"
+                      onClick={() => setStockMovement(prev => ({ ...prev, type: 'entrada' }))}
+                      className={`flex-1 flex items-center justify-center px-4 py-2.5 rounded-lg font-medium transition-colors duration-200 ${
+                        stockMovement.type === 'entrada'
+                          ? 'bg-green-500 text-white shadow-sm'
+                          : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      <Plus className="h-5 w-5 mr-2" />
+                      Entrada
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStockMovement(prev => ({ ...prev, type: 'saída' }))}
+                      className={`flex-1 flex items-center justify-center px-4 py-2.5 rounded-lg font-medium transition-colors duration-200 ${
+                        stockMovement.type === 'saída'
+                          ? 'bg-red-500 text-white shadow-sm'
+                          : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      <Minus className="h-5 w-5 mr-2" />
+                      Saída
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Quantidade
+                  </label>
+                  <input
+                    type="number"
+                    value={stockMovement.quantity}
+                    onChange={(e) => handleNumberChange(e, 'quantity')}
+                    min="0"
+                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 transition-colors duration-200"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nome do Usuário
+                  </label>
+                  <input
+                    type="text"
+                    value={stockMovement.user_name}
+                    onChange={(e) => setStockMovement(prev => ({ ...prev, user_name: e.target.value }))}
+                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 transition-colors duration-200"
+                    placeholder="Digite seu nome"
+                  />
+                </div>
+
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Observação
+                  </label>
+                  <textarea
+                    value={stockMovement.observation}
+                    onChange={(e) => setStockMovement(prev => ({ ...prev, observation: e.target.value }))}
+                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 transition-colors duration-200"
+                    rows={3}
+                    placeholder="Adicione uma observação sobre esta movimentação"
+                  />
+                </div>
               </div>
             </div>
           )}
 
-          {error && (
-            <div className="text-red-600 text-sm mt-2">
-              {error}
-            </div>
-          )}
-
-          <div className="flex justify-end space-x-3 mt-6">
+          <div className="flex justify-end space-x-3 pt-6 border-t">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+              className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors duration-200"
             >
-              {editItem ? 'Salvar' : 'Adicionar'}
+              {editItem ? 'Salvar Alterações' : 'Adicionar Item'}
             </button>
           </div>
         </form>
