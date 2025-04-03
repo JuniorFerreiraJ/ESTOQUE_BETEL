@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-import React, { useState, useEffect } from 'react';
-=======
 import React, { useState } from 'react';
->>>>>>> b99068829ebc5ecda03e92f55c1e81f8fe2619e7
 import { format } from 'date-fns';
 import { Pencil, Trash2, X, Eye } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
@@ -14,14 +10,6 @@ interface HistoryItem {
   type: 'entrada' | 'saída';
   observation: string;
   created_at: string;
-  department_id: string;
-<<<<<<< HEAD
-  departments: {
-    name: string;
-  } | null;
-  user_name: string;
-=======
->>>>>>> b99068829ebc5ecda03e92f55c1e81f8fe2619e7
 }
 
 interface InventoryHistoryProps {
@@ -33,209 +21,29 @@ export default function InventoryHistory({ history, onUpdate }: InventoryHistory
   const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
   const [editingItem, setEditingItem] = useState<HistoryItem | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState<string | null>(null);
-<<<<<<< HEAD
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    console.log('InventoryHistory recebeu histórico:', history);
-    if (!history || history.length === 0) {
-      setError('Nenhum histórico encontrado');
-    } else {
-      setError(null);
-    }
-  }, [history]);
-
-  const handleDelete = async (id: string) => {
-    try {
-      const { error } = await supabase.from('inventory_history').delete().eq('id', id);
-      if (error) throw error;
-=======
 
   const handleDelete = async (id: string) => {
     try {
       await supabase.from('inventory_history').delete().eq('id', id);
->>>>>>> b99068829ebc5ecda03e92f55c1e81f8fe2619e7
       setDeleteConfirmation(null);
       onUpdate();
     } catch (error) {
       console.error('Error deleting history item:', error);
-<<<<<<< HEAD
-      setError('Erro ao excluir item do histórico');
-=======
->>>>>>> b99068829ebc5ecda03e92f55c1e81f8fe2619e7
     }
   };
 
   const handleEdit = async (item: HistoryItem) => {
     try {
-<<<<<<< HEAD
-      const { error } = await supabase
-=======
       await supabase
->>>>>>> b99068829ebc5ecda03e92f55c1e81f8fe2619e7
         .from('inventory_history')
         .update({
           observation: item.observation
         })
         .eq('id', item.id);
-<<<<<<< HEAD
-      
-      if (error) throw error;
-=======
->>>>>>> b99068829ebc5ecda03e92f55c1e81f8fe2619e7
       setEditingItem(null);
       onUpdate();
     } catch (error) {
       console.error('Error updating history item:', error);
-<<<<<<< HEAD
-      setError('Erro ao atualizar item do histórico');
-    }
-  };
-
-  if (error) {
-    return (
-      <div className="bg-white rounded-lg shadow p-4">
-        <p className="text-red-500">{error}</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-white rounded-lg shadow">
-      {history && history.length > 0 ? (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Data
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Item
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Departamento
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Tipo
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Quantidade
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Responsável
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Observação
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Ações
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {history.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {format(new Date(item.created_at), 'dd/MM/yyyy HH:mm')}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {item.item_name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {item.departments?.name || '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        item.type === 'entrada'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}
-                    >
-                      {item.type}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {item.quantity_changed}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {item.user_name || '-'}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
-                    {editingItem?.id === item.id ? (
-                      <input
-                        type="text"
-                        className="w-full px-2 py-1 border rounded-md"
-                        value={editingItem.observation}
-                        onChange={(e) =>
-                          setEditingItem({ ...editingItem, observation: e.target.value })
-                        }
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            handleEdit(editingItem);
-                          } else if (e.key === 'Escape') {
-                            setEditingItem(null);
-                          }
-                        }}
-                      />
-                    ) : (
-                      item.observation || '-'
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex items-center justify-end space-x-2">
-                      <button
-                        onClick={() => setSelectedItem(item)}
-                        className="text-gray-400 hover:text-gray-500"
-                        title="Visualizar"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => setEditingItem(item)}
-                        className="text-blue-400 hover:text-blue-500"
-                        title="Editar"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                      {deleteConfirmation === item.id ? (
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => handleDelete(item.id)}
-                            className="text-red-600 hover:text-red-700 text-xs font-medium"
-                          >
-                            Confirmar
-                          </button>
-                          <button
-                            onClick={() => setDeleteConfirmation(null)}
-                            className="text-gray-400 hover:text-gray-500"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setDeleteConfirmation(item.id)}
-                          className="text-red-400 hover:text-red-500"
-                          title="Excluir"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <div className="p-4 text-center text-gray-500">
-          Nenhum histórico de movimentação encontrado
-        </div>
-      )}
-=======
     }
   };
 
@@ -356,7 +164,6 @@ export default function InventoryHistory({ history, onUpdate }: InventoryHistory
           </tbody>
         </table>
       </div>
->>>>>>> b99068829ebc5ecda03e92f55c1e81f8fe2619e7
 
       {/* Modal de Visualização */}
       {selectedItem && (
@@ -383,13 +190,6 @@ export default function InventoryHistory({ history, onUpdate }: InventoryHistory
                 <p className="mt-1 text-sm text-gray-900">{selectedItem.item_name}</p>
               </div>
               <div>
-<<<<<<< HEAD
-                <label className="block text-sm font-medium text-gray-700">Departamento</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedItem.departments?.name || '-'}</p>
-              </div>
-              <div>
-=======
->>>>>>> b99068829ebc5ecda03e92f55c1e81f8fe2619e7
                 <label className="block text-sm font-medium text-gray-700">Tipo</label>
                 <span
                   className={`mt-1 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -406,13 +206,6 @@ export default function InventoryHistory({ history, onUpdate }: InventoryHistory
                 <p className="mt-1 text-sm text-gray-900">{selectedItem.quantity_changed}</p>
               </div>
               <div>
-<<<<<<< HEAD
-                <label className="block text-sm font-medium text-gray-700">Responsável</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedItem.user_name || '-'}</p>
-              </div>
-              <div>
-=======
->>>>>>> b99068829ebc5ecda03e92f55c1e81f8fe2619e7
                 <label className="block text-sm font-medium text-gray-700">Observação</label>
                 <p className="mt-1 text-sm text-gray-900">{selectedItem.observation || '-'}</p>
               </div>

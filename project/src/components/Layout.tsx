@@ -1,24 +1,16 @@
-<<<<<<< HEAD
-import React, { useState, useEffect } from 'react';
-import { 
-  Package, 
-=======
 import React, { useState } from 'react';
 import { 
   Package, 
-  BarChart2,
->>>>>>> b99068829ebc5ecda03e92f55c1e81f8fe2619e7
+  BarChart2, 
+  LogOut, 
   Menu, 
-  LogOut,
-  ChevronRight,
+  X, 
+  Settings, 
   Home, 
   Layers, 
-<<<<<<< HEAD
-  History,
-  Settings
-=======
-  History
->>>>>>> b99068829ebc5ecda03e92f55c1e81f8fe2619e7
+  History, 
+  ChevronRight,
+  Users
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -31,40 +23,12 @@ export default function Layout({ children }: LayoutProps) {
   const { signOut } = useAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
-<<<<<<< HEAD
-  const [activeSection, setActiveSection] = useState('dashboard');
   
-  useEffect(() => {
-    // Get initial active section from URL hash
-    const hash = window.location.hash.replace('#', '') || 'dashboard';
-    setActiveSection(hash);
-
-    // Listen for hash changes
-    const handleHashChange = () => {
-      const newHash = window.location.hash.replace('#', '') || 'dashboard';
-      setActiveSection(newHash);
-    };
-
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
-
-=======
-  
->>>>>>> b99068829ebc5ecda03e92f55c1e81f8fe2619e7
   const handleSignOut = async () => {
     await signOut();
     navigate('/login');
   };
 
-<<<<<<< HEAD
-  const handleNavigation = (section: string) => {
-    window.location.hash = section;
-    setActiveSection(section);
-  };
-
-=======
->>>>>>> b99068829ebc5ecda03e92f55c1e81f8fe2619e7
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
@@ -92,52 +56,6 @@ export default function Layout({ children }: LayoutProps) {
 
         <div className="flex-1 overflow-y-auto py-4">
           <nav className="px-2 space-y-1">
-<<<<<<< HEAD
-            <button
-              onClick={() => handleNavigation('dashboard')}
-              className={`flex items-center px-3 py-3 text-sm font-medium rounded-md w-full ${
-                activeSection === 'dashboard'
-                  ? 'bg-green-600 text-white'
-                  : 'text-green-100 hover:bg-green-600 hover:text-white'
-              }`}
-            >
-              <Home className={`h-5 w-5 ${!sidebarOpen && 'mx-auto'}`} />
-              {sidebarOpen && <span className="ml-3">Dashboard</span>}
-            </button>
-            <button
-              onClick={() => handleNavigation('inventory')}
-              className={`flex items-center px-3 py-3 text-sm font-medium rounded-md w-full ${
-                activeSection === 'inventory'
-                  ? 'bg-green-600 text-white'
-                  : 'text-green-100 hover:bg-green-600 hover:text-white'
-              }`}
-            >
-              <Layers className={`h-5 w-5 ${!sidebarOpen && 'mx-auto'}`} />
-              {sidebarOpen && <span className="ml-3">Inventário</span>}
-            </button>
-            <button
-              onClick={() => handleNavigation('history')}
-              className={`flex items-center px-3 py-3 text-sm font-medium rounded-md w-full ${
-                activeSection === 'history'
-                  ? 'bg-green-600 text-white'
-                  : 'text-green-100 hover:bg-green-600 hover:text-white'
-              }`}
-            >
-              <History className={`h-5 w-5 ${!sidebarOpen && 'mx-auto'}`} />
-              {sidebarOpen && <span className="ml-3">Histórico</span>}
-            </button>
-            <button
-              onClick={() => handleNavigation('management')}
-              className={`flex items-center px-3 py-3 text-sm font-medium rounded-md w-full ${
-                activeSection === 'management'
-                  ? 'bg-green-600 text-white'
-                  : 'text-green-100 hover:bg-green-600 hover:text-white'
-              }`}
-            >
-              <Settings className={`h-5 w-5 ${!sidebarOpen && 'mx-auto'}`} />
-              {sidebarOpen && <span className="ml-3">Gerenciamento</span>}
-            </button>
-=======
             <a
               href="#dashboard"
               className="flex items-center px-3 py-3 text-sm font-medium rounded-md text-green-100 hover:bg-green-600 hover:text-white"
@@ -166,7 +84,13 @@ export default function Layout({ children }: LayoutProps) {
               <BarChart2 className={`h-5 w-5 ${!sidebarOpen && 'mx-auto'}`} />
               {sidebarOpen && <span className="ml-3">Análise</span>}
             </a>
->>>>>>> b99068829ebc5ecda03e92f55c1e81f8fe2619e7
+            <a
+              href="#management"
+              className="flex items-center px-3 py-3 text-sm font-medium rounded-md text-green-100 hover:bg-green-600 hover:text-white"
+            >
+              <Users className={`h-5 w-5 ${!sidebarOpen && 'mx-auto'}`} />
+              {sidebarOpen && <span className="ml-3">Gerenciamento</span>}
+            </a>
           </nav>
         </div>
 
@@ -187,7 +111,7 @@ export default function Layout({ children }: LayoutProps) {
       <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-20'}`}>
         <header className="bg-white shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-            <h1 className="text-2xl font-semibold text-gray-900">SISTEMA DE CONTROLE BETEL</h1>
+            <h1 className="text-2xl font-semibold text-gray-900">Sistema de Controle de Estoque</h1>
           </div>
         </header>
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
