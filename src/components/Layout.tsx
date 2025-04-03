@@ -1,24 +1,14 @@
-<<<<<<< HEAD
 import React, { useState, useEffect } from 'react';
 import { 
   Package, 
-=======
-import React, { useState } from 'react';
-import { 
-  Package, 
   BarChart2,
->>>>>>> b99068829ebc5ecda03e92f55c1e81f8fe2619e7
   Menu, 
   LogOut,
   ChevronRight,
   Home, 
   Layers, 
-<<<<<<< HEAD
   History,
   Settings
-=======
-  History
->>>>>>> b99068829ebc5ecda03e92f55c1e81f8fe2619e7
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -31,7 +21,6 @@ export default function Layout({ children }: LayoutProps) {
   const { signOut } = useAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
-<<<<<<< HEAD
   const [activeSection, setActiveSection] = useState('dashboard');
   
   useEffect(() => {
@@ -49,22 +38,16 @@ export default function Layout({ children }: LayoutProps) {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-=======
-  
->>>>>>> b99068829ebc5ecda03e92f55c1e81f8fe2619e7
   const handleSignOut = async () => {
     await signOut();
     navigate('/login');
   };
 
-<<<<<<< HEAD
   const handleNavigation = (section: string) => {
     window.location.hash = section;
     setActiveSection(section);
   };
 
-=======
->>>>>>> b99068829ebc5ecda03e92f55c1e81f8fe2619e7
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
@@ -92,7 +75,6 @@ export default function Layout({ children }: LayoutProps) {
 
         <div className="flex-1 overflow-y-auto py-4">
           <nav className="px-2 space-y-1">
-<<<<<<< HEAD
             <button
               onClick={() => handleNavigation('dashboard')}
               className={`flex items-center px-3 py-3 text-sm font-medium rounded-md w-full ${
@@ -101,9 +83,10 @@ export default function Layout({ children }: LayoutProps) {
                   : 'text-green-100 hover:bg-green-600 hover:text-white'
               }`}
             >
-              <Home className={`h-5 w-5 ${!sidebarOpen && 'mx-auto'}`} />
-              {sidebarOpen && <span className="ml-3">Dashboard</span>}
+              <Home className="h-5 w-5 mr-3" />
+              {sidebarOpen && 'Dashboard'}
             </button>
+
             <button
               onClick={() => handleNavigation('inventory')}
               className={`flex items-center px-3 py-3 text-sm font-medium rounded-md w-full ${
@@ -112,9 +95,10 @@ export default function Layout({ children }: LayoutProps) {
                   : 'text-green-100 hover:bg-green-600 hover:text-white'
               }`}
             >
-              <Layers className={`h-5 w-5 ${!sidebarOpen && 'mx-auto'}`} />
-              {sidebarOpen && <span className="ml-3">Inventário</span>}
+              <Layers className="h-5 w-5 mr-3" />
+              {sidebarOpen && 'Inventário'}
             </button>
+
             <button
               onClick={() => handleNavigation('history')}
               className={`flex items-center px-3 py-3 text-sm font-medium rounded-md w-full ${
@@ -123,9 +107,22 @@ export default function Layout({ children }: LayoutProps) {
                   : 'text-green-100 hover:bg-green-600 hover:text-white'
               }`}
             >
-              <History className={`h-5 w-5 ${!sidebarOpen && 'mx-auto'}`} />
-              {sidebarOpen && <span className="ml-3">Histórico</span>}
+              <History className="h-5 w-5 mr-3" />
+              {sidebarOpen && 'Histórico'}
             </button>
+
+            <button
+              onClick={() => handleNavigation('analytics')}
+              className={`flex items-center px-3 py-3 text-sm font-medium rounded-md w-full ${
+                activeSection === 'analytics'
+                  ? 'bg-green-600 text-white'
+                  : 'text-green-100 hover:bg-green-600 hover:text-white'
+              }`}
+            >
+              <BarChart2 className="h-5 w-5 mr-3" />
+              {sidebarOpen && 'Análise'}
+            </button>
+
             <button
               onClick={() => handleNavigation('management')}
               className={`flex items-center px-3 py-3 text-sm font-medium rounded-md w-full ${
@@ -134,63 +131,28 @@ export default function Layout({ children }: LayoutProps) {
                   : 'text-green-100 hover:bg-green-600 hover:text-white'
               }`}
             >
-              <Settings className={`h-5 w-5 ${!sidebarOpen && 'mx-auto'}`} />
-              {sidebarOpen && <span className="ml-3">Gerenciamento</span>}
+              <Settings className="h-5 w-5 mr-3" />
+              {sidebarOpen && 'Gerenciamento'}
             </button>
-=======
-            <a
-              href="#dashboard"
-              className="flex items-center px-3 py-3 text-sm font-medium rounded-md text-green-100 hover:bg-green-600 hover:text-white"
-            >
-              <Home className={`h-5 w-5 ${!sidebarOpen && 'mx-auto'}`} />
-              {sidebarOpen && <span className="ml-3">Dashboard</span>}
-            </a>
-            <a
-              href="#inventory"
-              className="flex items-center px-3 py-3 text-sm font-medium rounded-md text-green-100 hover:bg-green-600 hover:text-white"
-            >
-              <Layers className={`h-5 w-5 ${!sidebarOpen && 'mx-auto'}`} />
-              {sidebarOpen && <span className="ml-3">Inventário</span>}
-            </a>
-            <a
-              href="#history"
-              className="flex items-center px-3 py-3 text-sm font-medium rounded-md text-green-100 hover:bg-green-600 hover:text-white"
-            >
-              <History className={`h-5 w-5 ${!sidebarOpen && 'mx-auto'}`} />
-              {sidebarOpen && <span className="ml-3">Histórico</span>}
-            </a>
-            <a
-              href="#analytics"
-              className="flex items-center px-3 py-3 text-sm font-medium rounded-md text-green-100 hover:bg-green-600 hover:text-white"
-            >
-              <BarChart2 className={`h-5 w-5 ${!sidebarOpen && 'mx-auto'}`} />
-              {sidebarOpen && <span className="ml-3">Análise</span>}
-            </a>
->>>>>>> b99068829ebc5ecda03e92f55c1e81f8fe2619e7
           </nav>
         </div>
 
-        <div className="p-4 border-t border-green-600">
+        <div className="border-t border-green-600 p-4">
           <button
             onClick={handleSignOut}
-            className={`flex items-center px-3 py-2 text-sm font-medium rounded-md text-green-100 hover:bg-green-600 hover:text-white w-full ${
-              !sidebarOpen && 'justify-center'
-            }`}
+            className="flex items-center px-3 py-3 text-sm font-medium text-green-100 hover:bg-green-600 hover:text-white rounded-md w-full"
           >
-            <LogOut className="h-5 w-5" />
-            {sidebarOpen && <span className="ml-2">Sair</span>}
+            <LogOut className="h-5 w-5 mr-3" />
+            {sidebarOpen && 'Sair'}
           </button>
         </div>
       </div>
 
       {/* Main content */}
-      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-20'}`}>
-        <header className="bg-white shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-            <h1 className="text-2xl font-semibold text-gray-900">SISTEMA DE CONTROLE BETEL</h1>
-          </div>
-        </header>
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className={`flex-1 transition-all duration-300 ease-in-out ${
+        sidebarOpen ? 'ml-64' : 'ml-20'
+      }`}>
+        <main className="p-6">
           {children}
         </main>
       </div>
