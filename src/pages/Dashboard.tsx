@@ -25,6 +25,7 @@ interface HistoryItem {
 function Dashboard() {
   const [activeTab, setActiveTab] = useState('Todos');
   const [activeDepartment, setActiveDepartment] = useState('Todos');
+  const [activeCategory, setActiveCategory] = useState('Todos');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
@@ -38,6 +39,7 @@ function Dashboard() {
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [activeSection, setActiveSection] = useState('dashboard');
   const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     fetchCategories();
@@ -154,9 +156,10 @@ function Dashboard() {
   };
 
   const filteredItems = items.filter(item => {
-    const matchesCategory = activeTab === 'Todos' || item.categories?.name === activeTab;
+    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesDepartment = activeDepartment === 'Todos' || item.departments?.name === activeDepartment;
-    return matchesCategory && matchesDepartment;
+    const matchesCategory = activeCategory === 'Todos' || item.categories?.name === activeCategory;
+    return matchesSearch && matchesDepartment && matchesCategory;
   });
 
   useEffect(() => {
@@ -204,7 +207,7 @@ function Dashboard() {
         <h2 className="text-xl font-semibold">Inventário</h2>
         <div className="flex space-x-4">
           <button
-            className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700"
+            className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors duration-200"
             onClick={() => {
               setSelectedItem(null);
               setShowAddModal(true);
@@ -216,21 +219,22 @@ function Dashboard() {
         </div>
       </div>
 
-      <div className="flex space-x-4 mb-6">
-        <div className="relative department-dropdown">
+      <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 mb-6">
+        {/* Filtro por Departamento */}
+        <div className="relative w-full md:w-64 department-dropdown">
           <button
             onClick={() => setShowDepartmentDropdown(!showDepartmentDropdown)}
-            className="bg-white border border-gray-300 rounded-md py-2 px-3 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
+            className="w-full bg-white border border-gray-300 rounded-md py-2 px-3 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
           >
-            <div className="flex items-center">
-              <span className="block truncate mr-2">Departamento: {activeDepartment}</span>
+            <div className="flex items-center justify-between">
+              <span className="block truncate">Departamento: {activeDepartment}</span>
               <ChevronDown className="h-4 w-4 text-gray-400" />
             </div>
           </button>
           {showDepartmentDropdown && (
             <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
               <div
-                className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gray-50"
+                className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gray-50 transition-colors duration-150"
                 onClick={() => {
                   setActiveDepartment('Todos');
                   setShowDepartmentDropdown(false);
@@ -241,7 +245,7 @@ function Dashboard() {
               {departments.map((department) => (
                 <div
                   key={department.id}
-                  className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gray-50"
+                  className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gray-50 transition-colors duration-150"
                   onClick={() => {
                     setActiveDepartment(department.name);
                     setShowDepartmentDropdown(false);
@@ -253,13 +257,62 @@ function Dashboard() {
             </div>
           )}
         </div>
+
+        {/* Filtro por Categoria */}
+        <div className="relative w-full md:w-64 category-dropdown">
+          <button
+            onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+            className="w-full bg-white border border-gray-300 rounded-md py-2 px-3 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
+          >
+            <div className="flex items-center justify-between">
+              <span className="block truncate">Categoria: {activeCategory}</span>
+              <ChevronDown className="h-4 w-4 text-gray-400" />
+            </div>
+          </button>
+          {showCategoryDropdown && (
+            <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
+              <div
+                className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gray-50 transition-colors duration-150"
+                onClick={() => {
+                  setActiveCategory('Todos');
+                  setShowCategoryDropdown(false);
+                }}
+              >
+                Todos
+              </div>
+              {categories.map((category) => (
+                <div
+                  key={category.id}
+                  className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gray-50 transition-colors duration-150"
+                  onClick={() => {
+                    setActiveCategory(category.name);
+                    setShowCategoryDropdown(false);
+                  }}
+                >
+                  {category.name}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Campo de busca por itens */}
+        <div className="w-full md:w-96">
+          <input
+            type="text"
+            placeholder="Buscar por nome do item..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-white border border-gray-300 rounded-md py-2 px-3 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
+          />
+        </div>
       </div>
 
       <div className="bg-white shadow-lg rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
+            <thead>
+              <tr className="bg-gray-50">
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Nome
                 </th>
@@ -282,7 +335,10 @@ function Dashboard() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredItems.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50">
+                <tr 
+                  key={item.id} 
+                  className="hover:bg-gray-50 transition-colors duration-150"
+                >
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">{item.name}</div>
                   </td>
@@ -293,10 +349,10 @@ function Dashboard() {
                     <div className="text-sm text-gray-500">{item.departments?.name || '-'}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className={`text-sm font-medium ${
+                    <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium ${
                       item.current_quantity <= item.minimum_quantity
-                        ? 'text-red-600'
-                        : 'text-green-600'
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-green-100 text-green-800'
                     }`}>
                       {item.current_quantity}
                     </div>
@@ -308,7 +364,7 @@ function Dashboard() {
                     <div className="flex items-center justify-end space-x-3">
                       <button
                         onClick={() => handleEditItem(item)}
-                        className="text-green-600 hover:text-green-900"
+                        className="text-green-600 hover:text-green-900 transition-colors duration-150"
                       >
                         Editar
                       </button>
@@ -317,7 +373,7 @@ function Dashboard() {
                           e.stopPropagation();
                           setDeleteConfirmation(item.id);
                         }}
-                        className="text-red-600 hover:text-red-900"
+                        className="text-red-600 hover:text-red-900 transition-colors duration-150"
                       >
                         Excluir
                       </button>
@@ -328,6 +384,12 @@ function Dashboard() {
             </tbody>
           </table>
         </div>
+        
+        {filteredItems.length === 0 && (
+          <div className="text-center py-8 text-gray-500">
+            Nenhum item encontrado
+          </div>
+        )}
       </div>
 
       {/* Delete Confirmation Modal */}
