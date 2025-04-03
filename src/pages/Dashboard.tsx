@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, X, Settings, Trash2, ChevronDown, AlertTriangle } from 'lucide-react';
+import { Plus, X, Settings, Trash2, ChevronDown, AlertTriangle, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import AddEditItemModal from '../components/AddEditItemModal';
 import CategoryDepartmentModal from '../components/CategoryDepartmentModal';
@@ -41,6 +41,12 @@ function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const itemsPerPage = 10;
+
   useEffect(() => {
     fetchCategories();
     fetchDepartments();
@@ -68,16 +74,49 @@ function Dashboard() {
   };
 
   const fetchItems = async () => {
-    const { data } = await supabase
-      .from('inventory_items')
-      .select('*, categories(name), departments(name)')
-      .order('name');
-    
-    if (data) {
-      setItems(data);
-      setLowStockCount(
-        data.filter(item => item.current_quantity <= item.minimum_quantity).length
-      );
+    setIsLoading(true);
+    try {
+      // First, get total count for pagination
+      let query = supabase
+        .from('inventory_items')
+        .select('*', { count: 'exact' });
+
+      if (activeDepartment) {
+        query = query.eq('department_id', activeDepartment);
+      }
+      if (activeCategory) {
+        query = query.eq('category_id', activeCategory);
+      }
+      if (searchTerm) {
+        query = query.ilike('name', `%${searchTerm}%`);
+      }
+
+      const { count } = await query;
+      setTotalItems(count || 0);
+
+      // Then fetch paginated data
+      const { data, error } = await supabase
+        .from('inventory_items')
+        .select(`
+          *,
+          categories (
+            id,
+            name
+          ),
+          departments (
+            id,
+            name
+          )
+        `)
+        .order('name')
+        .range((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage - 1);
+
+      if (error) throw error;
+      setItems(data || []);
+    } catch (error) {
+      console.error('Error fetching items:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -156,10 +195,10 @@ function Dashboard() {
   };
 
   const filteredItems = items.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesDepartment = activeDepartment === 'Todos' || item.departments?.name === activeDepartment;
-    const matchesCategory = activeCategory === 'Todos' || item.categories?.name === activeCategory;
-    return matchesSearch && matchesDepartment && matchesCategory;
+    const matchesDepartment = !activeDepartment || item.department_id === activeDepartment;
+    const matchesCategory = !activeCategory || item.category_id === activeCategory;
+    const matchesSearch = !searchTerm || item.name.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesDepartment && matchesCategory && matchesSearch;
   });
 
   useEffect(() => {
@@ -176,6 +215,8 @@ function Dashboard() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
 
   const renderDashboardSection = () => {
     const lowStockItems = items.filter(item => item.current_quantity <= item.minimum_quantity);
@@ -334,62 +375,137 @@ function Dashboard() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredItems.map((item) => (
-                <tr 
-                  key={item.id} 
-                  className="hover:bg-gray-50 transition-colors duration-150"
-                >
-                  <td className="px-4 py-2 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{item.name}</div>
-                  </td>
-                  <td className="px-4 py-2 whitespace-nowrap">
-                    <div className="text-sm text-gray-500">{item.categories?.name || '-'}</div>
-                  </td>
-                  <td className="px-4 py-2 whitespace-nowrap">
-                    <div className="text-sm text-gray-500">{item.departments?.name || '-'}</div>
-                  </td>
-                  <td className="px-4 py-2 whitespace-nowrap">
-                    <div className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                      item.current_quantity <= item.minimum_quantity
-                        ? 'bg-red-100 text-red-800'
-                        : 'bg-green-100 text-green-800'
-                    }`}>
-                      {item.current_quantity}
-                    </div>
-                  </td>
-                  <td className="px-4 py-2 whitespace-nowrap">
-                    <div className="text-sm text-gray-500">{item.minimum_quantity}</div>
-                  </td>
-                  <td className="px-4 py-2 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex items-center justify-end space-x-2">
-                      <button
-                        onClick={() => handleEditItem(item)}
-                        className="text-green-600 hover:text-green-900 transition-colors duration-150 text-xs"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeleteConfirmation(item.id);
-                        }}
-                        className="text-red-600 hover:text-red-900 transition-colors duration-150 text-xs"
-                      >
-                        Excluir
-                      </button>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center">
+                    <div className="flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
+                      <span className="ml-2 text-gray-500">Carregando...</span>
                     </div>
                   </td>
                 </tr>
-              ))}
+              ) : filteredItems.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                    Nenhum item encontrado
+                  </td>
+                </tr>
+              ) : (
+                filteredItems.map((item) => (
+                  <tr 
+                    key={item.id} 
+                    className="hover:bg-gray-50 transition-colors duration-150"
+                  >
+                    <td className="px-4 py-2 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">{item.name}</div>
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap">
+                      <div className="text-sm text-gray-500">{item.categories?.name || '-'}</div>
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap">
+                      <div className="text-sm text-gray-500">{item.departments?.name || '-'}</div>
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap">
+                      <div className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                        item.current_quantity <= item.minimum_quantity
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-green-100 text-green-800'
+                      }`}>
+                        {item.current_quantity}
+                      </div>
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap">
+                      <div className="text-sm text-gray-500">{item.minimum_quantity}</div>
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex items-center justify-end space-x-2">
+                        <button
+                          onClick={() => handleEditItem(item)}
+                          className="text-green-600 hover:text-green-900 transition-colors duration-150 text-xs"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteConfirmation(item.id);
+                          }}
+                          className="text-red-600 hover:text-red-900 transition-colors duration-150 text-xs"
+                        >
+                          Excluir
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
         
-        {filteredItems.length === 0 && (
-          <div className="text-center py-8 text-gray-500">
-            Nenhum item encontrado
+        {/* Pagination Controls */}
+        <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 sm:px-6">
+          <div className="flex items-center justify-between">
+            <div className="flex-1 flex justify-between sm:hidden">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Anterior
+              </button>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Próximo
+              </button>
+            </div>
+            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-gray-700">
+                  Mostrando <span className="font-medium">{((currentPage - 1) * itemsPerPage) + 1}</span> a{' '}
+                  <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalItems)}</span> de{' '}
+                  <span className="font-medium">{totalItems}</span> resultados
+                </p>
+              </div>
+              <div>
+                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="sr-only">Anterior</span>
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                  {[...Array(totalPages)].map((_, i) => (
+                    <button
+                      key={i + 1}
+                      onClick={() => setCurrentPage(i + 1)}
+                      className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                        currentPage === i + 1
+                          ? 'z-10 bg-green-50 border-green-500 text-green-600'
+                          : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                      }`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="sr-only">Próximo</span>
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                </nav>
+              </div>
+            </div>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Delete Confirmation Modal */}
