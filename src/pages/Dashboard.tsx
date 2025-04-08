@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, X, Settings, Trash2, ChevronDown, AlertTriangle, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { Plus, X, Settings, Trash2, ChevronDown, AlertTriangle, ChevronLeft, ChevronRight, Search, Package, TrendingUp, BarChart2, Users, ShoppingCart, LogOut, Home, List, FileText, ClipboardList, Calendar, Tag, Building } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import AddEditItemModal from '../components/AddEditItemModal';
 import CategoryDepartmentModal from '../components/CategoryDepartmentModal';
@@ -7,6 +7,8 @@ import InventoryChart from '../components/InventoryChart';
 import InventoryHistory from '../components/InventoryHistory';
 import DashboardStats from '../components/DashboardStats';
 import DepartmentDistribution from '../components/DepartmentDistribution';
+import MovementChart from '../components/MovementChart';
+import AnalyticsSection from '../components/AnalyticsSection';
 
 interface HistoryItem {
   id: number;
@@ -40,6 +42,9 @@ function Dashboard() {
   const [activeSection, setActiveSection] = useState('dashboard');
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedAnalyticsDepartment, setSelectedAnalyticsDepartment] = useState('Todos');
+  const [showAnalyticsDepartmentDropdown, setShowAnalyticsDepartmentDropdown] = useState(false);
+  const [movementData, setMovementData] = useState<any[]>([]);
 
   useEffect(() => {
     fetchCategories();
@@ -84,7 +89,7 @@ function Dashboard() {
   const fetchHistory = async () => {
     try {
       console.log('Iniciando busca do histórico...');
-      
+
       // Primeiro, vamos verificar se a tabela existe e tem dados
       const { count, error: countError } = await supabase
         .from('inventory_history')
@@ -134,7 +139,7 @@ function Dashboard() {
         .eq('id', itemId);
 
       if (error) throw error;
-      
+
       setDeleteConfirmation(null);
       await fetchItems();
       await fetchHistory();
@@ -182,7 +187,32 @@ function Dashboard() {
 
     return (
       <div className="space-y-6">
-        <DashboardStats items={items} />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl shadow-lg p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <Package className="w-6 h-6 text-green-600" />
+              <h3 className="text-lg font-semibold text-gray-800">Total de Itens</h3>
+            </div>
+            <p className="text-3xl font-bold text-gray-900">{items?.length || 0}</p>
+          </div>
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl shadow-lg p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <Tag className="w-6 h-6 text-blue-600" />
+              <h3 className="text-lg font-semibold text-gray-800">Total de Categorias</h3>
+            </div>
+            <p className="text-3xl font-bold text-gray-900">{new Set(items.map(item => item.categories?.name)).size || 0}</p>
+          </div>
+          <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl shadow-lg p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <AlertTriangle className="w-6 h-6 text-red-600" />
+              <h3 className="text-lg font-semibold text-gray-800">Itens em Estoque Baixo</h3>
+            </div>
+            <p className="text-3xl font-bold text-red-600">
+              {items?.filter(item => item.current_quantity <= item.minimum_quantity).length || 0}
+            </p>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-white rounded-lg shadow-lg p-6">
             <h3 className="text-lg font-semibold mb-4">Distribuição por Departamento</h3>
@@ -335,8 +365,8 @@ function Dashboard() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredItems.map((item) => (
-                <tr 
-                  key={item.id} 
+                <tr
+                  key={item.id}
                   className="hover:bg-gray-50 transition-colors duration-150"
                 >
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -349,11 +379,10 @@ function Dashboard() {
                     <div className="text-sm text-gray-500">{item.departments?.name || '-'}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium ${
-                      item.current_quantity <= item.minimum_quantity
-                        ? 'bg-red-100 text-red-800'
-                        : 'bg-green-100 text-green-800'
-                    }`}>
+                    <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium ${item.current_quantity <= item.minimum_quantity
+                      ? 'bg-red-100 text-red-800'
+                      : 'bg-green-100 text-green-800'
+                      }`}>
                       {item.current_quantity}
                     </div>
                   </td>
@@ -429,30 +458,21 @@ function Dashboard() {
     </div>
   );
 
-  const renderAnalyticsSection = () => (
-    <div className="space-y-8">
-      <h2 className="text-xl font-semibold">Análise de Dados</h2>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h3 className="text-lg font-semibold mb-4">Distribuição por Departamento</h3>
-          <div className="h-[400px]">
-            <DepartmentDistribution items={items} departments={departments} />
-          </div>
-        </div>
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h3 className="text-lg font-semibold mb-4">Níveis de Estoque</h3>
-          <div className="h-[400px]">
-            <InventoryChart data={items} />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  const renderAnalyticsSection = () => {
+    return (
+      <AnalyticsSection
+        items={items}
+        departments={departments}
+        history={history}
+        onEditItem={handleEditItem}
+      />
+    );
+  };
 
   const renderManagementSection = () => (
     <div className="space-y-8">
       <h2 className="text-xl font-semibold">Gerenciamento</h2>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white shadow-lg rounded-lg p-6">
           <h3 className="text-lg font-semibold mb-4">Categorias e Departamentos</h3>
@@ -477,7 +497,7 @@ function Dashboard() {
             {items
               .filter(item => item.current_quantity <= item.minimum_quantity)
               .map(item => (
-                <div 
+                <div
                   key={item.id}
                   className="p-3 bg-red-50 rounded-lg flex justify-between items-center"
                 >
@@ -554,12 +574,8 @@ function Dashboard() {
   };
 
   return (
-    <div>
-      {activeSection === 'dashboard' && renderDashboardSection()}
-      {activeSection === 'inventory' && renderInventorySection()}
-      {activeSection === 'history' && renderHistorySection()}
-      {activeSection === 'analytics' && renderAnalyticsSection()}
-      {activeSection === 'management' && renderManagementSection()}
+    <div className="min-h-screen bg-gray-100">
+      {renderContent()}
 
       {showAddModal && (
         <AddEditItemModal
