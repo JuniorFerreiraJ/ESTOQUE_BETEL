@@ -30,6 +30,7 @@ function Dashboard() {
   const [activeCategory, setActiveCategory] = useState('Todos');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [modalInitialTab, setModalInitialTab] = useState<'categories' | 'departments'>('categories');
   const [categories, setCategories] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [items, setItems] = useState<any[]>([]);
@@ -45,12 +46,14 @@ function Dashboard() {
   const [selectedAnalyticsDepartment, setSelectedAnalyticsDepartment] = useState('Todos');
   const [showAnalyticsDepartmentDropdown, setShowAnalyticsDepartmentDropdown] = useState(false);
   const [movementData, setMovementData] = useState<any[]>([]);
+  const [dailyMovements, setDailyMovements] = useState({ entries: 0, exits: 0 });
 
   useEffect(() => {
     fetchCategories();
     fetchDepartments();
     fetchItems();
     fetchHistory();
+    calculateDailyMovements();
 
     const handleHashChange = () => {
       const hash = window.location.hash.slice(1) || 'dashboard';
@@ -131,6 +134,21 @@ function Dashboard() {
     }
   };
 
+  const calculateDailyMovements = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const todayMovements = history.filter(item => {
+      const itemDate = new Date(item.created_at);
+      return itemDate >= today;
+    });
+
+    const entries = todayMovements.filter(item => item.type === 'entrada').length;
+    const exits = todayMovements.filter(item => item.type === 'saida').length;
+
+    setDailyMovements({ entries, exits });
+  };
+
   const handleDeleteItem = async (itemId: string) => {
     try {
       const { error } = await supabase
@@ -156,6 +174,7 @@ function Dashboard() {
   const handleModalSuccess = async () => {
     await fetchItems();
     await fetchHistory();
+    calculateDailyMovements();
     setShowAddModal(false);
     setSelectedItem(null);
   };
@@ -182,57 +201,153 @@ function Dashboard() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const renderDashboardSection = () => {
-    const lowStockItems = items.filter(item => item.current_quantity <= item.minimum_quantity);
+  const handleOpenCategoryModal = (tab: 'categories' | 'departments') => {
+    setModalInitialTab(tab);
+    setShowCategoryModal(true);
+  };
 
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl shadow-lg p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <Package className="w-6 h-6 text-green-600" />
-              <h3 className="text-lg font-semibold text-gray-800">Total de Itens</h3>
-            </div>
-            <p className="text-3xl font-bold text-gray-900">{items?.length || 0}</p>
+  const renderDashboardSection = () => (
+    <div className="space-y-8">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl shadow-lg p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <Package className="w-8 h-8 text-green-600" />
+            <h3 className="text-lg font-semibold text-gray-800">Total de Itens</h3>
           </div>
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl shadow-lg p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <Tag className="w-6 h-6 text-blue-600" />
-              <h3 className="text-lg font-semibold text-gray-800">Total de Categorias</h3>
-            </div>
-            <p className="text-3xl font-bold text-gray-900">{new Set(items.map(item => item.categories?.name)).size || 0}</p>
-          </div>
-          <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl shadow-lg p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <AlertTriangle className="w-6 h-6 text-red-600" />
-              <h3 className="text-lg font-semibold text-gray-800">Itens em Estoque Baixo</h3>
-            </div>
-            <p className="text-3xl font-bold text-red-600">
-              {items?.filter(item => item.current_quantity <= item.minimum_quantity).length || 0}
-            </p>
-          </div>
+          <p className="text-3xl font-bold text-gray-900">{items.length}</p>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h3 className="text-lg font-semibold mb-4">Distribuição por Departamento</h3>
-            <div className="h-[300px]">
-              <DepartmentDistribution items={items} departments={departments} />
-            </div>
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl shadow-lg p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <Building className="w-8 h-8 text-blue-600" />
+            <h3 className="text-lg font-semibold text-gray-800">Total de Departamentos</h3>
           </div>
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h3 className="text-lg font-semibold mb-4">Visão Geral do Estoque</h3>
-            <div className="h-[300px]">
-              <InventoryChart data={items} />
+          <p className="text-3xl font-bold text-gray-900">{departments.length}</p>
+        </div>
+        <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl shadow-lg p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <Tag className="w-8 h-8 text-purple-600" />
+            <h3 className="text-lg font-semibold text-gray-800">Total de Categorias</h3>
+          </div>
+          <p className="text-3xl font-bold text-gray-900">{categories.length}</p>
+        </div>
+        <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl shadow-lg p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <TrendingUp className="w-8 h-8 text-orange-600" />
+            <h3 className="text-lg font-semibold text-gray-800">Movimentações Hoje</h3>
+          </div>
+          <div className="flex justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Entradas</p>
+              <p className="text-2xl font-bold text-green-600">{dailyMovements.entries}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Saídas</p>
+              <p className="text-2xl font-bold text-red-600">{dailyMovements.exits}</p>
             </div>
           </div>
         </div>
       </div>
-    );
-  };
+
+      {lowStockCount > 0 && (
+        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-md shadow-sm">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <AlertTriangle className="h-5 w-5 text-red-400" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-700">
+                Atenção! {lowStockCount} {lowStockCount === 1 ? 'item' : 'itens'} com estoque baixo
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <h3 className="text-lg font-semibold mb-4">Distribuição por Departamento</h3>
+          <div className="h-[400px]">
+            <DepartmentDistribution items={items} departments={departments} />
+          </div>
+        </div>
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <Calendar className="w-8 h-8 text-indigo-600" />
+            <h3 className="text-lg font-semibold">Resumo do Mês</h3>
+          </div>
+          <div className="space-y-6">
+            <div className="p-4 bg-indigo-50 rounded-lg">
+              <h4 className="text-sm font-medium text-indigo-800 mb-2">Média de Movimentações Diárias</h4>
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-xs text-indigo-600 mb-1">Entradas</p>
+                  <p className="text-2xl font-bold text-indigo-700">
+                    {Math.round(history.filter(h => h.type === 'entrada').length / 30)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-indigo-600 mb-1">Saídas</p>
+                  <p className="text-2xl font-bold text-indigo-700">
+                    {Math.round(history.filter(h => h.type === 'saida').length / 30)}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="p-4 bg-indigo-50 rounded-lg">
+              <h4 className="text-sm font-medium text-indigo-800 mb-2">Departamentos mais Ativos</h4>
+              <div className="space-y-2">
+                {departments
+                  .map(dept => ({
+                    ...dept,
+                    movements: history.filter(h => h.department_id === dept.id).length
+                  }))
+                  .sort((a, b) => b.movements - a.movements)
+                  .slice(0, 3)
+                  .map((dept, index) => (
+                    <div key={dept.id} className="flex justify-between items-center">
+                      <span className="text-sm text-indigo-600">{dept.name}</span>
+                      <span className="text-sm font-medium text-indigo-800">{dept.movements} mov.</span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+            <div className="p-4 bg-indigo-50 rounded-lg">
+              <h4 className="text-sm font-medium text-indigo-800 mb-2">Status do Estoque</h4>
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-xs text-indigo-600 mb-1">Itens OK</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {items.filter(item => item.current_quantity > item.minimum_quantity).length}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-indigo-600 mb-1">Itens Baixos</p>
+                  <p className="text-2xl font-bold text-red-600">
+                    {items.filter(item => item.current_quantity <= item.minimum_quantity).length}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-lg p-6">
+        <h2 className="text-lg font-semibold mb-4">Visão Geral do Estoque</h2>
+        <div className="h-[500px]">
+          <InventoryChart data={items.slice(0, 10)} />
+        </div>
+      </div>
+    </div>
+  );
 
   const renderInventorySection = () => (
     <div className="space-y-6">
+      <div className="bg-gray-50 p-4 rounded-lg flex items-center gap-4">
+        <Package className="w-8 h-8 text-green-600" />
+        <h2 className="text-2xl font-semibold text-gray-900">Inventário</h2>
+      </div>
+
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold">Inventário</h2>
         <div className="flex space-x-4">
@@ -453,106 +568,128 @@ function Dashboard() {
 
   const renderHistorySection = () => (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold">Histórico de Movimentações</h2>
+      <div className="bg-gray-50 p-4 rounded-lg flex items-center gap-4">
+        <ClipboardList className="w-8 h-8 text-green-600" />
+        <h2 className="text-2xl font-semibold text-gray-900">Histórico de Movimentações</h2>
+      </div>
       <InventoryHistory history={history} onUpdate={fetchHistory} />
     </div>
   );
 
-  const renderAnalyticsSection = () => {
-    return (
+  const renderAnalyticsSection = () => (
+    <div className="space-y-6">
       <AnalyticsSection
         items={items}
         departments={departments}
         history={history}
         onEditItem={handleEditItem}
       />
-    );
-  };
+    </div>
+  );
 
   const renderManagementSection = () => (
     <div className="space-y-8">
-      <h2 className="text-xl font-semibold">Gerenciamento</h2>
+      <div className="bg-gray-50 p-4 rounded-lg flex items-center gap-4">
+        <Settings className="w-8 h-8 text-green-600" />
+        <h2 className="text-2xl font-semibold text-gray-900">Gerenciamento do Sistema</h2>
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white shadow-lg rounded-lg p-6">
-          <h3 className="text-lg font-semibold mb-4">Categorias e Departamentos</h3>
-          <p className="text-gray-600 mb-4">
-            Gerencie as categorias e departamentos do sistema para melhor organização do inventário.
+      <div className="grid grid-cols-1 gap-8">
+        {/* Card de Departamentos */}
+        <div className="bg-white shadow-lg rounded-lg p-8">
+          <div className="flex items-center gap-3 mb-6">
+            <Building className="w-8 h-8 text-blue-600" />
+            <h3 className="text-2xl font-semibold">Departamentos</h3>
+          </div>
+          <p className="text-gray-600 mb-6 text-lg">
+            Gerencie os departamentos do sistema. Adicione, edite ou remova departamentos conforme necessário.
           </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <h4 className="text-lg font-medium text-blue-800 mb-2">Departamentos Ativos</h4>
+              <p className="text-3xl font-bold text-blue-600">{departments.length}</p>
+            </div>
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <h4 className="text-lg font-medium text-blue-800 mb-2">Itens por Departamento</h4>
+              <p className="text-3xl font-bold text-blue-600">
+                {Math.round(items.length / (departments.length || 1))}
+              </p>
+            </div>
+          </div>
           <button
-            className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700"
-            onClick={() => setShowCategoryModal(true)}
+            className="inline-flex items-center px-6 py-3 text-base font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors duration-200"
+            onClick={() => handleOpenCategoryModal('departments')}
           >
-            <Settings className="h-5 w-5 mr-2" />
-            Configurar
+            <Settings className="h-6 w-6 mr-2" />
+            Gerenciar Departamentos
           </button>
         </div>
 
-        <div className="bg-white shadow-lg rounded-lg p-6">
-          <h3 className="text-lg font-semibold mb-4">Itens em Estoque Baixo</h3>
-          <p className="text-gray-600 mb-4">
-            {lowStockCount} {lowStockCount === 1 ? 'item precisa' : 'itens precisam'} de reposição.
+        {/* Card de Categorias */}
+        <div className="bg-white shadow-lg rounded-lg p-8">
+          <div className="flex items-center gap-3 mb-6">
+            <Tag className="w-8 h-8 text-green-600" />
+            <h3 className="text-2xl font-semibold">Categorias</h3>
+          </div>
+          <p className="text-gray-600 mb-6 text-lg">
+            Gerencie as categorias dos itens. Crie novas categorias ou remova as existentes.
           </p>
-          <div className="space-y-3">
-            {items
-              .filter(item => item.current_quantity <= item.minimum_quantity)
-              .map(item => (
-                <div
-                  key={item.id}
-                  className="p-3 bg-red-50 rounded-lg flex justify-between items-center"
-                >
-                  <div>
-                    <p className="font-medium text-red-700">{item.name}</p>
-                    <p className="text-sm text-red-600">
-                      Atual: {item.current_quantity} | Mínimo: {item.minimum_quantity}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => handleEditItem(item)}
-                    className="px-3 py-1 text-sm text-white bg-red-600 rounded-md hover:bg-red-700"
-                  >
-                    Ajustar
-                  </button>
-                </div>
-              ))
-            }
-          </div>
-        </div>
-
-        <div className="bg-white shadow-lg rounded-lg p-6">
-          <h3 className="text-lg font-semibold mb-4">Resumo do Sistema</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-              <span className="text-gray-600">Total de Categorias</span>
-              <span className="font-semibold">{categories.length}</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div className="bg-green-50 p-4 rounded-lg">
+              <h4 className="text-lg font-medium text-green-800 mb-2">Categorias Ativas</h4>
+              <p className="text-3xl font-bold text-green-600">{categories.length}</p>
             </div>
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-              <span className="text-gray-600">Total de Departamentos</span>
-              <span className="font-semibold">{departments.length}</span>
-            </div>
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-              <span className="text-gray-600">Total de Itens</span>
-              <span className="font-semibold">{items.length}</span>
+            <div className="bg-green-50 p-4 rounded-lg">
+              <h4 className="text-lg font-medium text-green-800 mb-2">Itens por Categoria</h4>
+              <p className="text-3xl font-bold text-green-600">
+                {Math.round(items.length / (categories.length || 1))}
+              </p>
             </div>
           </div>
+          <button
+            className="inline-flex items-center px-6 py-3 text-base font-medium text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors duration-200"
+            onClick={() => handleOpenCategoryModal('categories')}
+          >
+            <Settings className="h-6 w-6 mr-2" />
+            Gerenciar Categorias
+          </button>
         </div>
 
-        <div className="bg-white shadow-lg rounded-lg p-6">
-          <h3 className="text-lg font-semibold mb-4">Ações Rápidas</h3>
-          <div className="space-y-3">
-            <button
-              onClick={() => {
-                setSelectedItem(null);
-                setShowAddModal(true);
-              }}
-              className="w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700"
-            >
-              <Plus className="h-5 w-5 mr-2" />
-              Adicionar Novo Item
-            </button>
+        {/* Card de Estatísticas */}
+        <div className="bg-white shadow-lg rounded-lg p-8">
+          <div className="flex items-center gap-3 mb-6">
+            <BarChart2 className="w-8 h-8 text-purple-600" />
+            <h3 className="text-2xl font-semibold">Estatísticas do Sistema</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-purple-50 p-4 rounded-lg">
+              <h4 className="text-lg font-medium text-purple-800 mb-2">Total de Itens</h4>
+              <p className="text-3xl font-bold text-purple-600">{items.length}</p>
+            </div>
+            <div className="bg-purple-50 p-4 rounded-lg">
+              <h4 className="text-lg font-medium text-purple-800 mb-2">Total de Departamentos</h4>
+              <p className="text-3xl font-bold text-purple-600">{departments.length}</p>
+            </div>
+            <div className="bg-purple-50 p-4 rounded-lg">
+              <h4 className="text-lg font-medium text-purple-800 mb-2">Total de Categorias</h4>
+              <p className="text-3xl font-bold text-purple-600">{categories.length}</p>
+            </div>
           </div>
         </div>
       </div>
+
+      <CategoryDepartmentModal
+        isOpen={showCategoryModal}
+        onClose={() => setShowCategoryModal(false)}
+        onSuccess={() => {
+          fetchCategories();
+          fetchDepartments();
+          setShowCategoryModal(false);
+        }}
+        categories={categories}
+        departments={departments}
+        initialTab={modalInitialTab}
+      />
     </div>
   );
 
@@ -588,19 +725,6 @@ function Dashboard() {
           categories={categories}
           departments={departments}
           editItem={selectedItem}
-        />
-      )}
-
-      {showCategoryModal && (
-        <CategoryDepartmentModal
-          isOpen={showCategoryModal}
-          onClose={() => setShowCategoryModal(false)}
-          onSuccess={() => {
-            fetchCategories();
-            fetchDepartments();
-          }}
-          categories={categories}
-          departments={departments}
         />
       )}
     </div>

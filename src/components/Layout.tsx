@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Package, 
+import {
+  Package,
   BarChart2,
-  Menu, 
+  Menu,
   LogOut,
   ChevronRight,
-  Home, 
-  Layers, 
+  Home,
+  Layers,
   History,
-  Settings
+  Settings,
+  ClipboardList
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -22,7 +23,7 @@ export default function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeSection, setActiveSection] = useState('dashboard');
-  
+
   useEffect(() => {
     // Get initial active section from URL hash
     const hash = window.location.hash.replace('#', '') || 'dashboard';
@@ -51,10 +52,9 @@ export default function Layout({ children }: LayoutProps) {
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
-      <div 
-        className={`bg-green-700 text-white transition-all duration-300 ease-in-out ${
-          sidebarOpen ? 'w-64' : 'w-20'
-        } fixed inset-y-0 left-0 z-30 flex flex-col`}
+      <div
+        className={`bg-green-700 text-white transition-all duration-300 ease-in-out ${sidebarOpen ? 'w-64' : 'w-20'
+          } fixed inset-y-0 left-0 z-30 flex flex-col`}
       >
         <div className="flex items-center justify-between h-16 px-4 border-b border-green-600">
           <div className="flex items-center">
@@ -77,11 +77,10 @@ export default function Layout({ children }: LayoutProps) {
           <nav className="px-2 space-y-1">
             <button
               onClick={() => handleNavigation('dashboard')}
-              className={`flex items-center px-3 py-3 text-sm font-medium rounded-md w-full ${
-                activeSection === 'dashboard'
-                  ? 'bg-green-600 text-white'
-                  : 'text-green-100 hover:bg-green-600 hover:text-white'
-              }`}
+              className={`flex items-center px-3 py-3 text-sm font-medium rounded-md w-full ${activeSection === 'dashboard'
+                ? 'bg-green-600 text-white'
+                : 'text-green-100 hover:bg-green-600 hover:text-white'
+                }`}
             >
               <Home className="h-5 w-5 mr-3" />
               {sidebarOpen && 'Dashboard'}
@@ -89,11 +88,10 @@ export default function Layout({ children }: LayoutProps) {
 
             <button
               onClick={() => handleNavigation('inventory')}
-              className={`flex items-center px-3 py-3 text-sm font-medium rounded-md w-full ${
-                activeSection === 'inventory'
-                  ? 'bg-green-600 text-white'
-                  : 'text-green-100 hover:bg-green-600 hover:text-white'
-              }`}
+              className={`flex items-center px-3 py-3 text-sm font-medium rounded-md w-full ${activeSection === 'inventory'
+                ? 'bg-green-600 text-white'
+                : 'text-green-100 hover:bg-green-600 hover:text-white'
+                }`}
             >
               <Layers className="h-5 w-5 mr-3" />
               {sidebarOpen && 'Inventário'}
@@ -101,11 +99,10 @@ export default function Layout({ children }: LayoutProps) {
 
             <button
               onClick={() => handleNavigation('history')}
-              className={`flex items-center px-3 py-3 text-sm font-medium rounded-md w-full ${
-                activeSection === 'history'
-                  ? 'bg-green-600 text-white'
-                  : 'text-green-100 hover:bg-green-600 hover:text-white'
-              }`}
+              className={`flex items-center px-3 py-3 text-sm font-medium rounded-md w-full ${activeSection === 'history'
+                ? 'bg-green-600 text-white'
+                : 'text-green-100 hover:bg-green-600 hover:text-white'
+                }`}
             >
               <History className="h-5 w-5 mr-3" />
               {sidebarOpen && 'Histórico'}
@@ -113,11 +110,10 @@ export default function Layout({ children }: LayoutProps) {
 
             <button
               onClick={() => handleNavigation('analytics')}
-              className={`flex items-center px-3 py-3 text-sm font-medium rounded-md w-full ${
-                activeSection === 'analytics'
-                  ? 'bg-green-600 text-white'
-                  : 'text-green-100 hover:bg-green-600 hover:text-white'
-              }`}
+              className={`flex items-center px-3 py-3 text-sm font-medium rounded-md w-full ${activeSection === 'analytics'
+                ? 'bg-green-600 text-white'
+                : 'text-green-100 hover:bg-green-600 hover:text-white'
+                }`}
             >
               <BarChart2 className="h-5 w-5 mr-3" />
               {sidebarOpen && 'Análise'}
@@ -125,11 +121,10 @@ export default function Layout({ children }: LayoutProps) {
 
             <button
               onClick={() => handleNavigation('management')}
-              className={`flex items-center px-3 py-3 text-sm font-medium rounded-md w-full ${
-                activeSection === 'management'
-                  ? 'bg-green-600 text-white'
-                  : 'text-green-100 hover:bg-green-600 hover:text-white'
-              }`}
+              className={`flex items-center px-3 py-3 text-sm font-medium rounded-md w-full ${activeSection === 'management'
+                ? 'bg-green-600 text-white'
+                : 'text-green-100 hover:bg-green-600 hover:text-white'
+                }`}
             >
               <Settings className="h-5 w-5 mr-3" />
               {sidebarOpen && 'Gerenciamento'}
@@ -149,9 +144,8 @@ export default function Layout({ children }: LayoutProps) {
       </div>
 
       {/* Main content */}
-      <div className={`flex-1 transition-all duration-300 ease-in-out ${
-        sidebarOpen ? 'ml-64' : 'ml-20'
-      }`}>
+      <div className={`flex-1 transition-all duration-300 ease-in-out ${sidebarOpen ? 'ml-64' : 'ml-20'
+        }`}>
         <main className="p-6">
           {children}
         </main>
