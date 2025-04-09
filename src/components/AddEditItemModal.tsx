@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Minus } from 'lucide-react';
+import { X, Plus, Minus, Package, Archive, AlertTriangle } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
 interface AddEditItemModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  categories: { id: string; name: string }[];
-  departments: { id: string; name: string }[];
+  categories: Array<{ id: string; name: string }>;
+  departments: Array<{ id: string; name: string }>;
   editItem?: {
     id: string;
     name: string;
@@ -42,6 +42,7 @@ export default function AddEditItemModal({
   });
 
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   // Reset form when modal opens/closes or editItem changes
   useEffect(() => {
@@ -54,7 +55,6 @@ export default function AddEditItemModal({
         minimum_quantity: editItem.minimum_quantity ?? 0
       });
     } else if (!isOpen) {
-      // Reset form when modal closes
       setFormData({
         name: '',
         category_id: '',
@@ -75,14 +75,9 @@ export default function AddEditItemModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
     try {
-      console.log('Iniciando operação de salvamento...', {
-        formData,
-        stockMovement,
-        editItem: editItem ? editItem.id : 'novo'
-      });
-
       if (!formData.name || !formData.category_id || !formData.department_id) {
         setError('Por favor, preencha todos os campos obrigatórios');
         return;
@@ -92,17 +87,9 @@ export default function AddEditItemModal({
         let newQuantity = formData.current_quantity;
 
         if (stockMovement.quantity > 0) {
-          console.log('Processando movimentação:', {
-            tipo: stockMovement.type,
-            quantidade: stockMovement.quantity,
-            quantidadeAtual: formData.current_quantity
-          });
-
           newQuantity = stockMovement.type === 'entrada'
             ? formData.current_quantity + stockMovement.quantity
             : formData.current_quantity - stockMovement.quantity;
-
-          console.log('Nova quantidade calculada:', newQuantity);
 
           if (newQuantity < 0) {
             setError('A quantidade não pode ficar negativa');
@@ -122,12 +109,7 @@ export default function AddEditItemModal({
               created_at: new Date().toISOString()
             });
 
-          if (historyError) {
-            console.error('Erro ao registrar histórico:', historyError);
-            throw historyError;
-          }
-
-          console.log('Histórico registrado com sucesso, atualizando item...');
+          if (historyError) throw historyError;
 
           // Depois atualiza o item
           const { error: updateError } = await supabase
@@ -142,12 +124,7 @@ export default function AddEditItemModal({
             })
             .eq('id', editItem.id);
 
-          if (updateError) {
-            console.error('Erro ao atualizar item:', updateError);
-            throw updateError;
-          }
-
-          console.log('Item atualizado com sucesso');
+          if (updateError) throw updateError;
         } else {
           // Se não há movimentação, apenas atualiza os dados do item
           const { error: updateError } = await supabase
@@ -161,10 +138,7 @@ export default function AddEditItemModal({
             })
             .eq('id', editItem.id);
 
-          if (updateError) {
-            console.error('Erro ao atualizar item:', updateError);
-            throw updateError;
-          }
+          if (updateError) throw updateError;
         }
       } else {
         // Criar novo item
@@ -180,10 +154,7 @@ export default function AddEditItemModal({
             updated_at: new Date().toISOString()
           });
 
-        if (insertError) {
-          console.error('Erro ao criar item:', insertError);
-          throw insertError;
-        }
+        if (insertError) throw insertError;
 
         // Se houver quantidade inicial, registra no histórico
         if (formData.current_quantity > 0) {
@@ -199,10 +170,7 @@ export default function AddEditItemModal({
               created_at: new Date().toISOString()
             });
 
-          if (historyError) {
-            console.error('Erro ao registrar histórico inicial:', historyError);
-            throw historyError;
-          }
+          if (historyError) throw historyError;
         }
       }
 
@@ -211,11 +179,13 @@ export default function AddEditItemModal({
     } catch (err) {
       console.error('Erro ao salvar:', err);
       setError('Erro ao salvar. Por favor, tente novamente.');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
-    const value = parseInt(e.target.value) || 0;
+    const value = e.target.value === '' ? 0 : parseInt(e.target.value);
     if (field === 'current_quantity' || field === 'minimum_quantity') {
       setFormData(prev => ({
         ...prev,
@@ -235,9 +205,14 @@ export default function AddEditItemModal({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6 pb-4 border-b">
-          <h2 className="text-2xl font-semibold text-gray-800">
-            {editItem ? 'Editar Item' : 'Adicionar Item'}
-          </h2>
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-green-50 rounded-lg">
+              <Package className="h-6 w-6 text-green-600" />
+            </div>
+            <h2 className="text-2xl font-semibold text-gray-800">
+              {editItem ? 'Editar Item' : 'Adicionar Item'}
+            </h2>
+          </div>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
@@ -247,8 +222,12 @@ export default function AddEditItemModal({
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-            {error}
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5" />
+            <div>
+              <h4 className="text-sm font-medium text-red-800">Erro ao salvar</h4>
+              <p className="text-sm text-red-700 mt-0.5">{error}</p>
+            </div>
           </div>
         )}
 
@@ -256,7 +235,7 @@ export default function AddEditItemModal({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nome do Item
+                Nome do Item <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -264,12 +243,13 @@ export default function AddEditItemModal({
                 onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                 className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 transition-colors duration-200"
                 required
+                placeholder="Digite o nome do item"
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Categoria
+                Categoria <span className="text-red-500">*</span>
               </label>
               <select
                 value={formData.category_id}
@@ -288,7 +268,7 @@ export default function AddEditItemModal({
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Departamento
+                Departamento <span className="text-red-500">*</span>
               </label>
               <select
                 value={formData.department_id}
@@ -312,10 +292,10 @@ export default function AddEditItemModal({
                 </label>
                 <input
                   type="number"
-                  value={formData.current_quantity}
+                  value={formData.current_quantity || ''}
                   onChange={(e) => handleNumberChange(e, 'current_quantity')}
                   min="0"
-                  className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 transition-colors duration-200"
+                  className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 transition-colors duration-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
               </div>
             ) : null}
@@ -326,19 +306,24 @@ export default function AddEditItemModal({
               </label>
               <input
                 type="number"
-                value={formData.minimum_quantity}
+                value={formData.minimum_quantity || ''}
                 onChange={(e) => handleNumberChange(e, 'minimum_quantity')}
                 min="0"
-                className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 transition-colors duration-200"
+                className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 transition-colors duration-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
             </div>
           </div>
 
           {editItem && (
             <div className="mt-8 pt-6 border-t">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                Movimentação de Estoque
-              </h3>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-blue-50 rounded-lg">
+                  <Archive className="h-5 w-5 text-blue-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-800">
+                  Movimentação de Estoque
+                </h3>
+              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="col-span-2">
@@ -346,11 +331,10 @@ export default function AddEditItemModal({
                     <button
                       type="button"
                       onClick={() => setStockMovement(prev => ({ ...prev, type: 'entrada' }))}
-                      className={`flex-1 flex items-center justify-center px-4 py-2.5 rounded-lg font-medium transition-colors duration-200 ${
-                        stockMovement.type === 'entrada'
-                          ? 'bg-green-500 text-white shadow-sm'
-                          : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                      }`}
+                      className={`flex-1 flex items-center justify-center px-4 py-2.5 rounded-lg font-medium transition-colors duration-200 ${stockMovement.type === 'entrada'
+                        ? 'bg-green-500 text-white shadow-sm'
+                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                        }`}
                     >
                       <Plus className="h-5 w-5 mr-2" />
                       Entrada
@@ -358,11 +342,10 @@ export default function AddEditItemModal({
                     <button
                       type="button"
                       onClick={() => setStockMovement(prev => ({ ...prev, type: 'saída' }))}
-                      className={`flex-1 flex items-center justify-center px-4 py-2.5 rounded-lg font-medium transition-colors duration-200 ${
-                        stockMovement.type === 'saída'
-                          ? 'bg-red-500 text-white shadow-sm'
-                          : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                      }`}
+                      className={`flex-1 flex items-center justify-center px-4 py-2.5 rounded-lg font-medium transition-colors duration-200 ${stockMovement.type === 'saída'
+                        ? 'bg-red-500 text-white shadow-sm'
+                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                        }`}
                     >
                       <Minus className="h-5 w-5 mr-2" />
                       Saída
@@ -376,10 +359,10 @@ export default function AddEditItemModal({
                   </label>
                   <input
                     type="number"
-                    value={stockMovement.quantity}
+                    value={stockMovement.quantity || ''}
                     onChange={(e) => handleNumberChange(e, 'quantity')}
                     min="0"
-                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 transition-colors duration-200"
+                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 transition-colors duration-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
 
@@ -417,14 +400,26 @@ export default function AddEditItemModal({
               type="button"
               onClick={onClose}
               className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+              disabled={loading}
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors duration-200"
+              className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors duration-200 flex items-center"
+              disabled={loading}
             >
-              {editItem ? 'Salvar Alterações' : 'Adicionar Item'}
+              {loading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Salvando...
+                </>
+              ) : (
+                editItem ? 'Salvar Alterações' : 'Adicionar Item'
+              )}
             </button>
           </div>
         </form>

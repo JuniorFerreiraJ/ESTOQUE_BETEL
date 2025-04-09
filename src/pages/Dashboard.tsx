@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, X, Settings, Trash2, ChevronDown, AlertTriangle, ChevronLeft, ChevronRight, Search, Package, TrendingUp, BarChart2, Users, ShoppingCart, LogOut, Home, List, FileText, ClipboardList, Calendar, Tag, Building } from 'lucide-react';
+import { Plus, X, Settings, Trash2, ChevronDown, AlertTriangle, ChevronLeft, ChevronRight, Search, Package, TrendingUp, BarChart2, Users, ShoppingCart, LogOut, Home, List, FileText, ClipboardList, Calendar, Tag, Building, Database, Activity, AlertCircle, PieChart } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import AddEditItemModal from '../components/AddEditItemModal';
 import CategoryDepartmentModal from '../components/CategoryDepartmentModal';
@@ -9,6 +9,7 @@ import DashboardStats from '../components/DashboardStats';
 import DepartmentDistribution from '../components/DepartmentDistribution';
 import MovementChart from '../components/MovementChart';
 import AnalyticsSection from '../components/AnalyticsSection';
+import DepartmentDistributionChart from '../components/DepartmentDistributionChart';
 
 interface HistoryItem {
   id: number;
@@ -36,6 +37,7 @@ function Dashboard() {
   const [items, setItems] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
   const [lowStockCount, setLowStockCount] = useState(0);
+  const [showLowStockAlert, setShowLowStockAlert] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState<string | null>(null);
   const [showDepartmentDropdown, setShowDepartmentDropdown] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
@@ -47,6 +49,11 @@ function Dashboard() {
   const [showAnalyticsDepartmentDropdown, setShowAnalyticsDepartmentDropdown] = useState(false);
   const [movementData, setMovementData] = useState<any[]>([]);
   const [dailyMovements, setDailyMovements] = useState({ entries: 0, exits: 0 });
+  const [databaseStats, setDatabaseStats] = useState({
+    totalRows: 0,
+    storageUsed: 0
+  });
+  const [users, setUsers] = useState<any[]>([]);
 
   useEffect(() => {
     fetchCategories();
@@ -54,6 +61,7 @@ function Dashboard() {
     fetchItems();
     fetchHistory();
     calculateDailyMovements();
+    fetchUsers();
 
     const handleHashChange = () => {
       const hash = window.location.hash.slice(1) || 'dashboard';
@@ -63,6 +71,34 @@ function Dashboard() {
     handleHashChange();
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  useEffect(() => {
+    const fetchDatabaseStats = async () => {
+      try {
+        // Contagem total de linhas
+        const tables = ['inventory_items', 'inventory_history', 'departments', 'categories'];
+        let totalRows = 0;
+
+        for (const table of tables) {
+          const { count } = await supabase
+            .from(table)
+            .select('*', { count: 'exact', head: true });
+
+          totalRows += count || 0;
+        }
+
+        setDatabaseStats(prev => ({
+          ...prev,
+          totalRows
+        }));
+
+      } catch (error) {
+        console.error('Erro ao buscar estatísticas:', error);
+      }
+    };
+
+    fetchDatabaseStats();
   }, []);
 
   const fetchCategories = async () => {
@@ -206,9 +242,22 @@ function Dashboard() {
     setShowCategoryModal(true);
   };
 
+  const fetchUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*');
+
+      if (error) throw error;
+      setUsers(data || []);
+    } catch (error) {
+      console.error('Erro ao buscar usuários:', error);
+    }
+  };
+
   const renderDashboardSection = () => (
     <div className="space-y-8">
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl shadow-lg p-6">
           <div className="flex items-center gap-3 mb-4">
             <Package className="w-8 h-8 text-green-600" />
@@ -222,13 +271,6 @@ function Dashboard() {
             <h3 className="text-lg font-semibold text-gray-800">Total de Departamentos</h3>
           </div>
           <p className="text-3xl font-bold text-gray-900">{departments.length}</p>
-        </div>
-        <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl shadow-lg p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <Tag className="w-8 h-8 text-purple-600" />
-            <h3 className="text-lg font-semibold text-gray-800">Total de Categorias</h3>
-          </div>
-          <p className="text-3xl font-bold text-gray-900">{categories.length}</p>
         </div>
         <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl shadow-lg p-6">
           <div className="flex items-center gap-3 mb-4">
@@ -248,28 +290,22 @@ function Dashboard() {
         </div>
       </div>
 
-      {lowStockCount > 0 && (
-        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-md shadow-sm">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <AlertTriangle className="h-5 w-5 text-red-400" />
-            </div>
-            <div className="ml-3">
-              <p className="text-sm text-red-700">
-                Atenção! {lowStockCount} {lowStockCount === 1 ? 'item' : 'itens'} com estoque baixo
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-lg shadow-lg p-6">
           <h3 className="text-lg font-semibold mb-4">Distribuição por Departamento</h3>
           <div className="h-[400px]">
-            <DepartmentDistribution items={items} departments={departments} />
+            <DepartmentDistributionChart
+              data={Object.entries(
+                items.reduce((acc, item) => {
+                  const dept = item.departments?.name || 'Sem Departamento';
+                  acc[dept] = (acc[dept] || 0) + 1;
+                  return acc;
+                }, {} as Record<string, number>)
+              ).map(([name, value]) => ({ name, value: value as number }))}
+            />
           </div>
         </div>
+
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="flex items-center gap-3 mb-6">
             <Calendar className="w-8 h-8 text-indigo-600" />
@@ -587,6 +623,123 @@ function Dashboard() {
     </div>
   );
 
+  const renderSystemStatsSection = () => (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <Users className="w-8 h-8 text-green-600" />
+            <h3 className="text-lg font-semibold">Usuários Ativos</h3>
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-3xl font-bold text-gray-900">{users.length}</p>
+              <p className="text-sm text-gray-500">Usuários cadastrados</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <FileText className="w-8 h-8 text-blue-600" />
+            <h3 className="text-lg font-semibold">Itens no Histórico</h3>
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-3xl font-bold text-gray-900">{history.length}</p>
+              <p className="text-sm text-gray-500">Movimentações registradas</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <Package className="w-8 h-8 text-purple-600" />
+            <h3 className="text-lg font-semibold">Itens Criados</h3>
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-3xl font-bold text-gray-900">{items.length}</p>
+              <p className="text-sm text-gray-500">Itens cadastrados</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-lg p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <Database className="w-8 h-8 text-indigo-600" />
+          <h3 className="text-lg font-semibold">Uso do Banco de Dados</h3>
+        </div>
+        <div className="space-y-4">
+          <div>
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-sm font-medium text-gray-700">Total de Registros</span>
+              <span className="text-sm font-medium text-gray-700">{databaseStats.totalRows} / 50.000</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2.5">
+              <div
+                className="bg-indigo-600 h-2.5 rounded-full"
+                style={{ width: `${(databaseStats.totalRows / 50000) * 100}%` }}
+              ></div>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              {Math.round((databaseStats.totalRows / 50000) * 100)}% do limite do plano gratuito
+            </p>
+          </div>
+          <div>
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-sm font-medium text-gray-700">Armazenamento</span>
+              <span className="text-sm font-medium text-gray-700">{databaseStats.storageUsed} / 500MB</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2.5">
+              <div
+                className="bg-indigo-600 h-2.5 rounded-full"
+                style={{ width: `${(databaseStats.storageUsed / 500) * 100}%` }}
+              ></div>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              {Math.round((databaseStats.storageUsed / 500) * 100)}% do limite do plano gratuito
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-lg p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <Activity className="w-8 h-8 text-indigo-600" />
+          <h3 className="text-lg font-semibold">Movimentações do Mês</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h4 className="text-sm font-medium text-gray-700 mb-2">Entradas</h4>
+            <p className="text-3xl font-bold text-green-600">
+              {history.filter(h => h.type === 'entrada').length}
+            </p>
+          </div>
+          <div>
+            <h4 className="text-sm font-medium text-gray-700 mb-2">Saídas</h4>
+            <p className="text-3xl font-bold text-red-600">
+              {history.filter(h => h.type === 'saida').length}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {databaseStats.totalRows > 40000 && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 text-yellow-600" />
+            <h3 className="text-sm font-medium text-yellow-800">Atenção: Limite do Plano Gratuito</h3>
+          </div>
+          <p className="text-sm text-yellow-700 mt-2">
+            Você está próximo do limite de registros do plano gratuito. Considere fazer backup dos dados antigos ou fazer upgrade do plano.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+
   const renderManagementSection = () => (
     <div className="space-y-8">
       <div className="bg-gray-50 p-4 rounded-lg flex items-center gap-4">
@@ -663,16 +816,16 @@ function Dashboard() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-purple-50 p-4 rounded-lg">
-              <h4 className="text-lg font-medium text-purple-800 mb-2">Total de Itens</h4>
+              <h4 className="text-lg font-medium text-purple-800 mb-2">Total de Usuários Ativos</h4>
+              <p className="text-3xl font-bold text-purple-600">{users.length}</p>
+            </div>
+            <div className="bg-purple-50 p-4 rounded-lg">
+              <h4 className="text-lg font-medium text-purple-800 mb-2">Total de Itens no Histórico</h4>
+              <p className="text-3xl font-bold text-purple-600">{history.length}</p>
+            </div>
+            <div className="bg-purple-50 p-4 rounded-lg">
+              <h4 className="text-lg font-medium text-purple-800 mb-2">Total de Itens Criados</h4>
               <p className="text-3xl font-bold text-purple-600">{items.length}</p>
-            </div>
-            <div className="bg-purple-50 p-4 rounded-lg">
-              <h4 className="text-lg font-medium text-purple-800 mb-2">Total de Departamentos</h4>
-              <p className="text-3xl font-bold text-purple-600">{departments.length}</p>
-            </div>
-            <div className="bg-purple-50 p-4 rounded-lg">
-              <h4 className="text-lg font-medium text-purple-800 mb-2">Total de Categorias</h4>
-              <p className="text-3xl font-bold text-purple-600">{categories.length}</p>
             </div>
           </div>
         </div>
@@ -705,6 +858,8 @@ function Dashboard() {
         return renderAnalyticsSection();
       case 'management':
         return renderManagementSection();
+      case 'system-stats':
+        return renderSystemStatsSection();
       default:
         return renderDashboardSection();
     }
