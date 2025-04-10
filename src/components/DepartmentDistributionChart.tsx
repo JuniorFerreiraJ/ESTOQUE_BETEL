@@ -45,10 +45,7 @@ export default function DepartmentDistributionChart({ data }: DepartmentDistribu
 
     return (
         <div className="w-full h-full">
-            <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-semibold text-gray-800">Distribuição por Departamento</h3>
-            </div>
-            <div className="h-[calc(100%-48px)]">
+            <div className="h-full">
                 <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                         <Pie

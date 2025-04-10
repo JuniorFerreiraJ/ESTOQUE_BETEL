@@ -37,70 +37,13 @@ interface MovementChartProps {
 const MovementChart: React.FC<MovementChartProps> = ({ data }) => {
     const chartRef = useRef<any>(null);
 
-    useEffect(() => {
-        if (chartRef.current) {
-            const chart = chartRef.current;
-            const ctx = chart.ctx;
-            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-            gradient.addColorStop(0, 'rgba(34, 197, 94, 0.2)');
-            gradient.addColorStop(1, 'rgba(34, 197, 94, 0)');
-
-            chart.data.datasets[0].backgroundColor = gradient;
-            chart.update();
-        }
-    }, [data]);
-
-    const chartData = {
-        labels: data.map(item => item.month),
-        datasets: [
-            {
-                label: 'Entrada',
-                data: data.map(item => item.entrada),
-                borderColor: 'rgb(34, 197, 94)',
-                backgroundColor: 'rgba(34, 197, 94, 0.2)',
-                tension: 0.4,
-                fill: true,
-                pointRadius: 4,
-                pointHoverRadius: 6,
-                pointBackgroundColor: 'rgb(34, 197, 94)',
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2,
-            },
-            {
-                label: 'Saída',
-                data: data.map(item => item.saida),
-                borderColor: 'rgb(239, 68, 68)',
-                backgroundColor: 'rgba(239, 68, 68, 0.2)',
-                tension: 0.4,
-                fill: true,
-                pointRadius: 4,
-                pointHoverRadius: 6,
-                pointBackgroundColor: 'rgb(239, 68, 68)',
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2,
-            },
-            {
-                label: 'Total',
-                data: data.map(item => item.total),
-                borderColor: 'rgb(99, 102, 241)',
-                backgroundColor: 'rgba(99, 102, 241, 0.2)',
-                tension: 0.4,
-                fill: true,
-                pointRadius: 4,
-                pointHoverRadius: 6,
-                pointBackgroundColor: 'rgb(99, 102, 241)',
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2,
-            }
-        ]
-    };
-
     const options = {
         responsive: true,
         maintainAspectRatio: false,
         animation: {
-            duration: 2000,
-            easing: 'easeInOutQuart' as const
+            duration: 800,
+            easing: 'easeOutQuart' as const,
+            delay: 0
         },
         plugins: {
             legend: {
@@ -115,7 +58,7 @@ const MovementChart: React.FC<MovementChartProps> = ({ data }) => {
                 }
             },
             tooltip: {
-                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                backgroundColor: 'rgba(255, 255, 255, 1)',
                 titleColor: '#1f2937',
                 bodyColor: '#1f2937',
                 borderColor: '#e5e7eb',
@@ -123,6 +66,9 @@ const MovementChart: React.FC<MovementChartProps> = ({ data }) => {
                 padding: 12,
                 boxPadding: 4,
                 usePointStyle: true,
+                displayColors: true,
+                boxWidth: 10,
+                boxHeight: 10,
                 callbacks: {
                     label: function (context: any) {
                         return `${context.dataset.label}: ${context.parsed.y}`;
@@ -154,6 +100,38 @@ const MovementChart: React.FC<MovementChartProps> = ({ data }) => {
                 }
             }
         }
+    };
+
+    const chartData = {
+        labels: data.map(item => item.month),
+        datasets: [
+            {
+                label: 'Entrada',
+                data: data.map(item => item.entrada),
+                borderColor: 'rgb(34, 197, 94)',
+                backgroundColor: 'rgba(34, 197, 94, 0.2)',
+                tension: 0.4,
+                fill: true,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                pointBackgroundColor: 'rgb(34, 197, 94)',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+            },
+            {
+                label: 'Saída',
+                data: data.map(item => item.saida),
+                borderColor: 'rgb(239, 68, 68)',
+                backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                tension: 0.4,
+                fill: true,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                pointBackgroundColor: 'rgb(239, 68, 68)',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+            }
+        ]
     };
 
     return (

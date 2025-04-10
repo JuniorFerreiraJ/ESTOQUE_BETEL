@@ -96,6 +96,16 @@ export default function AddEditItemModal({
             return;
           }
 
+          console.log('Registrando movimentação:', {
+            item_name: formData.name,
+            quantity_changed: stockMovement.quantity,
+            type: stockMovement.type,
+            observation: stockMovement.observation || 'Movimentação de estoque',
+            department_id: formData.department_id,
+            user_name: stockMovement.user_name || 'Usuário do Sistema',
+            created_at: new Date().toISOString()
+          });
+
           // Primeiro registra o histórico
           const { error: historyError } = await supabase
             .from('inventory_history')
@@ -109,7 +119,10 @@ export default function AddEditItemModal({
               created_at: new Date().toISOString()
             });
 
-          if (historyError) throw historyError;
+          if (historyError) {
+            console.error('Erro ao registrar histórico:', historyError);
+            throw historyError;
+          }
 
           // Depois atualiza o item
           const { error: updateError } = await supabase
@@ -141,6 +154,16 @@ export default function AddEditItemModal({
           if (updateError) throw updateError;
         }
       } else {
+        console.log('Criando novo item:', {
+          name: formData.name,
+          category_id: formData.category_id,
+          department_id: formData.department_id,
+          current_quantity: formData.current_quantity,
+          minimum_quantity: formData.minimum_quantity,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+
         // Criar novo item
         const { error: insertError } = await supabase
           .from('inventory_items')
@@ -154,10 +177,23 @@ export default function AddEditItemModal({
             updated_at: new Date().toISOString()
           });
 
-        if (insertError) throw insertError;
+        if (insertError) {
+          console.error('Erro ao criar item:', insertError);
+          throw insertError;
+        }
 
         // Se houver quantidade inicial, registra no histórico
         if (formData.current_quantity > 0) {
+          console.log('Registrando quantidade inicial:', {
+            item_name: formData.name,
+            quantity_changed: formData.current_quantity,
+            type: 'entrada',
+            observation: 'Quantidade inicial',
+            department_id: formData.department_id,
+            user_name: 'Usuário do Sistema',
+            created_at: new Date().toISOString()
+          });
+
           const { error: historyError } = await supabase
             .from('inventory_history')
             .insert({
@@ -170,7 +206,10 @@ export default function AddEditItemModal({
               created_at: new Date().toISOString()
             });
 
-          if (historyError) throw historyError;
+          if (historyError) {
+            console.error('Erro ao registrar quantidade inicial:', historyError);
+            throw historyError;
+          }
         }
       }
 

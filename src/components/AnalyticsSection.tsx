@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { ChevronDown, BarChart2, Package, AlertTriangle, TrendingUp } from 'lucide-react';
 import MovementChart from './MovementChart';
 
@@ -15,61 +15,79 @@ const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ items, departments,
     const [movementData, setMovementData] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    const filteredItems = selectedDepartment === 'Todos'
-        ? items
-        : items.filter(item => item.departments?.name === selectedDepartment);
+    // Memoize filtered items and history
+    const filteredItems = useMemo(() => {
+        return selectedDepartment === 'Todos'
+            ? items
+            : items.filter(item => item.departments?.name === selectedDepartment);
+    }, [items, selectedDepartment]);
 
-    const totalCategories = new Set(filteredItems.map(item => item.categories?.name)).size;
+    const filteredHistory = useMemo(() => {
+        return selectedDepartment === 'Todos'
+            ? history
+            : history.filter(item => item.departments?.name === selectedDepartment);
+    }, [history, selectedDepartment]);
 
-    const filteredHistory = selectedDepartment === 'Todos'
-        ? history
-        : history.filter(item => item.departments?.name === selectedDepartment);
+    const totalCategories = useMemo(() => {
+        return new Set(filteredItems.map(item => item.categories?.name)).size;
+    }, [filteredItems]);
+
+    // Memoize the data processing function
+    const processMovementData = useCallback(() => {
+        try {
+            const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+                'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+            // Create a map for faster lookups
+            const monthMap = new Map(months.map((month, index) => [index, { entrada: 0, saida: 0 }]));
+
+            // Process history in a single pass
+            for (const item of filteredHistory) {
+                if (!item?.created_at) continue;
+
+                const itemDate = new Date(item.created_at);
+                const monthIndex = itemDate.getMonth();
+
+                const monthData = monthMap.get(monthIndex) || { entrada: 0, saida: 0 };
+
+                if (item.type === 'entrada') {
+                    monthData.entrada += item.quantity_changed || 0;
+                } else if (item.type === 'saída') {
+                    monthData.saida += item.quantity_changed || 0;
+                }
+
+                monthMap.set(monthIndex, monthData);
+            }
+
+            const processedData = months.map((month, index) => {
+                const monthData = monthMap.get(index) || { entrada: 0, saida: 0 };
+
+                return {
+                    month,
+                    entrada: monthData.entrada,
+                    saida: monthData.saida,
+                    total: monthData.entrada - monthData.saida
+                };
+            });
+
+            setMovementData(processedData);
+            setIsLoading(false);
+        } catch (error) {
+            console.error('Erro ao processar dados de movimentação:', error);
+            setMovementData([]);
+            setIsLoading(false);
+        }
+    }, [filteredHistory]);
 
     useEffect(() => {
-        const processMovementData = () => {
-            try {
-                const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-                    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-
-                const currentYear = new Date().getFullYear();
-                const processedData = months.map(month => {
-                    const monthIndex = months.indexOf(month);
-                    const startDate = new Date(currentYear, monthIndex, 1);
-                    const endDate = new Date(currentYear, monthIndex + 1, 0);
-
-                    const monthHistory = filteredHistory?.filter(item => {
-                        if (!item?.created_at) return false;
-                        const itemDate = new Date(item.created_at);
-                        return itemDate >= startDate && itemDate <= endDate;
-                    }) || [];
-
-                    const entrada = monthHistory
-                        .filter(item => item.type === 'entrada')
-                        .reduce((sum, item) => sum + (item.quantity_changed || 0), 0);
-
-                    const saida = monthHistory
-                        .filter(item => item.type === 'saida')
-                        .reduce((sum, item) => sum + (item.quantity_changed || 0), 0);
-
-                    return {
-                        month,
-                        entrada,
-                        saida,
-                        total: entrada - saida
-                    };
-                });
-
-                setMovementData(processedData);
-                setIsLoading(false);
-            } catch (error) {
-                console.error('Erro ao processar dados de movimentação:', error);
-                setMovementData([]);
-                setIsLoading(false);
-            }
-        };
-
         processMovementData();
-    }, [filteredHistory]);
+    }, [processMovementData]);
+
+    // Memoize department selection handler
+    const handleDepartmentSelect = useCallback((department: string) => {
+        setSelectedDepartment(department);
+        setShowDepartmentDropdown(false);
+    }, []);
 
     return (
         <div className="space-y-6 p-6 bg-gray-50 rounded-xl">

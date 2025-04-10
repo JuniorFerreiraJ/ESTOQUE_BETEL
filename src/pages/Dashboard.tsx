@@ -15,7 +15,7 @@ interface HistoryItem {
   id: number;
   item_name: string;
   quantity_changed: number;
-  type: 'entrada' | 'saida';
+  type: 'entrada' | 'saída';
   observation: string;
   department_id: number;
   user_name: string;
@@ -173,14 +173,31 @@ function Dashboard() {
   const calculateDailyMovements = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    console.log('Calculando movimentações do dia:', {
+      today: today.toISOString(),
+      tomorrow: tomorrow.toISOString(),
+      historyLength: history.length
+    });
 
     const todayMovements = history.filter(item => {
       const itemDate = new Date(item.created_at);
-      return itemDate >= today;
+      return itemDate >= today && itemDate < tomorrow;
     });
 
-    const entries = todayMovements.filter(item => item.type === 'entrada').length;
-    const exits = todayMovements.filter(item => item.type === 'saida').length;
+    console.log('Movimentações de hoje:', todayMovements);
+
+    const entries = todayMovements
+      .filter(item => item.type === 'entrada')
+      .reduce((sum, item) => sum + (item.quantity_changed || 0), 0);
+
+    const exits = todayMovements
+      .filter(item => item.type === 'saída')
+      .reduce((sum, item) => sum + (item.quantity_changed || 0), 0);
+
+    console.log('Resultados:', { entries, exits });
 
     setDailyMovements({ entries, exits });
   };
@@ -324,7 +341,7 @@ function Dashboard() {
                 <div>
                   <p className="text-xs text-indigo-600 mb-1">Saídas</p>
                   <p className="text-2xl font-bold text-indigo-700">
-                    {Math.round(history.filter(h => h.type === 'saida').length / 30)}
+                    {Math.round(history.filter(h => h.type === 'saída').length / 30)}
                   </p>
                 </div>
               </div>
@@ -720,7 +737,7 @@ function Dashboard() {
           <div>
             <h4 className="text-sm font-medium text-gray-700 mb-2">Saídas</h4>
             <p className="text-3xl font-bold text-red-600">
-              {history.filter(h => h.type === 'saida').length}
+              {history.filter(h => h.type === 'saída').length}
             </p>
           </div>
         </div>
