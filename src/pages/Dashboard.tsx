@@ -846,6 +846,44 @@ function Dashboard() {
             </div>
           </div>
         </div>
+
+        {/* Card de Uso do Banco de Dados */}
+        <div className="bg-white rounded-xl shadow-sm p-8">
+          <div className="flex items-center gap-3 mb-6">
+            <Database className="w-8 h-8 text-purple-500" />
+            <h3 className="text-2xl font-bold text-gray-900">Uso do Banco de Dados</h3>
+          </div>
+          <div className="mb-6">
+            <div className="flex justify-between items-center mb-1">
+              <span className="font-semibold text-gray-800">Total de Registros</span>
+              <span className="font-semibold text-gray-700">{databaseStats.totalRows} / 50.000</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2.5 mb-1">
+              <div
+                className="bg-purple-500 h-2.5 rounded-full"
+                style={{ width: `${(databaseStats.totalRows / 50000) * 100}%` }}
+              ></div>
+            </div>
+            <p className="text-xs text-gray-500">
+              {Math.round((databaseStats.totalRows / 50000) * 100)}% do limite do plano gratuito
+            </p>
+          </div>
+          <div>
+            <div className="flex justify-between items-center mb-1">
+              <span className="font-semibold text-gray-800">Armazenamento</span>
+              <span className="font-semibold text-gray-700">{databaseStats.storageUsed} / 500MB</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2.5 mb-1">
+              <div
+                className="bg-purple-500 h-2.5 rounded-full"
+                style={{ width: `${(databaseStats.storageUsed / 500) * 100}%` }}
+              ></div>
+            </div>
+            <p className="text-xs text-gray-500">
+              {Math.round((databaseStats.storageUsed / 500) * 100)}% do limite do plano gratuito
+            </p>
+          </div>
+        </div>
       </div>
 
       <CategoryDepartmentModal
