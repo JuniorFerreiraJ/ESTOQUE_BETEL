@@ -10,6 +10,7 @@ import DepartmentDistribution from '../components/DepartmentDistribution';
 import MovementChart from '../components/MovementChart';
 import AnalyticsSection from '../components/AnalyticsSection';
 import DepartmentDistributionChart from '../components/DepartmentDistributionChart';
+import Devolucoes from './Devolucoes';
 
 interface HistoryItem {
   id: number;
@@ -848,18 +849,45 @@ function Dashboard() {
         </div>
       </div>
 
-      <CategoryDepartmentModal
-        isOpen={showCategoryModal}
-        onClose={() => setShowCategoryModal(false)}
-        onSuccess={() => {
-          fetchCategories();
-          fetchDepartments();
-          setShowCategoryModal(false);
-        }}
-        categories={categories}
-        departments={departments}
-        initialTab={modalInitialTab}
-      />
+      {/* Card de Uso do Banco de Dados */}
+      <div className="bg-white rounded-lg shadow-lg p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <Database className="w-8 h-8 text-indigo-600" />
+          <h3 className="text-lg font-semibold">Uso do Banco de Dados</h3>
+        </div>
+        <div className="space-y-4">
+          <div>
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-sm font-medium text-gray-700">Total de Registros</span>
+              <span className="text-sm font-medium text-gray-700">{databaseStats.totalRows} / 50.000</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2.5">
+              <div
+                className="bg-indigo-600 h-2.5 rounded-full"
+                style={{ width: `${(databaseStats.totalRows / 50000) * 100}%` }}
+              ></div>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              {Math.round((databaseStats.totalRows / 50000) * 100)}% do limite do plano gratuito
+            </p>
+          </div>
+          <div>
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-sm font-medium text-gray-700">Armazenamento</span>
+              <span className="text-sm font-medium text-gray-700">{databaseStats.storageUsed} / 500MB</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2.5">
+              <div
+                className="bg-indigo-600 h-2.5 rounded-full"
+                style={{ width: `${(databaseStats.storageUsed / 500) * 100}%` }}
+              ></div>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              {Math.round((databaseStats.storageUsed / 500) * 100)}% do limite do plano gratuito
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 
@@ -877,6 +905,8 @@ function Dashboard() {
         return renderManagementSection();
       case 'system-stats':
         return renderSystemStatsSection();
+      case 'devolucoes':
+        return <Devolucoes />;
       default:
         return renderDashboardSection();
     }

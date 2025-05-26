@@ -120,6 +120,17 @@ export default function Layout({ children }: LayoutProps) {
             </button>
 
             <button
+              onClick={() => handleNavigation('devolucoes')}
+              className={`flex items-center px-3 py-3 text-sm font-medium rounded-md w-full ${activeSection === 'devolucoes'
+                ? 'bg-green-600 text-white'
+                : 'text-green-100 hover:bg-green-600 hover:text-white'
+                }`}
+            >
+              <ClipboardList className="h-5 w-5 mr-3" />
+              {sidebarOpen && 'Devoluções'}
+            </button>
+
+            <button
               onClick={() => handleNavigation('management')}
               className={`flex items-center px-3 py-3 text-sm font-medium rounded-md w-full ${activeSection === 'management'
                 ? 'bg-green-600 text-white'

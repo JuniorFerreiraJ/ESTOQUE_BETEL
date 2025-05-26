@@ -2,6 +2,7 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import Devolucoes from './pages/Devolucoes';
 import { useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout';
 
