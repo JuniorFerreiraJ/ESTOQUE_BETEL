@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, X, Settings, Trash2, ChevronDown, AlertTriangle, ChevronLeft, ChevronRight, Search, Package, TrendingUp, BarChart2, Users, ShoppingCart, LogOut, Home, List, FileText, ClipboardList, Calendar, Tag, Building, Database, Activity, AlertCircle, PieChart } from 'lucide-react';
+import { Plus, X, Settings, Trash2, ChevronDown, AlertTriangle, ChevronLeft, ChevronRight, Search, Package, TrendingUp, BarChart2, Users, ShoppingCart, LogOut, Home, List, FileText, ClipboardList, Calendar, Tag, Building, Database, Activity, AlertCircle, PieChart, History, Layers, ArrowUpCircle, ArrowDownCircle, HardDrive } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import AddEditItemModal from '../components/AddEditItemModal';
 import CategoryDepartmentModal from '../components/CategoryDepartmentModal';
@@ -262,12 +262,30 @@ function Dashboard() {
 
   const fetchUsers = async () => {
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*');
+      // Buscando usuários únicos do histórico de movimentações
+      const { data: historyData, error } = await supabase
+        .from('inventory_history')
+        .select('user_name')
+        .not('user_name', 'is', null)
+        .order('user_name');
 
-      if (error) throw error;
-      setUsers(data || []);
+      if (error) {
+        console.error('Erro ao buscar usuários:', error);
+        return;
+      }
+
+      if (historyData) {
+        // Criando um Set para garantir valores únicos
+        const uniqueUsers = new Set(historyData.map(h => h.user_name));
+        // Convertendo para array e criando objetos com a estrutura necessária
+        const usersArray = Array.from(uniqueUsers).map(name => ({ user_name: name }));
+        
+        // Debug: Mostrar os usuários únicos encontrados
+        console.log('Usuários únicos encontrados:', Array.from(uniqueUsers));
+        console.log('Total de usuários:', uniqueUsers.size);
+        
+        setUsers(usersArray);
+      }
     } catch (error) {
       console.error('Erro ao buscar usuários:', error);
     }
@@ -396,17 +414,16 @@ function Dashboard() {
   );
 
   const renderInventorySection = () => (
-    <div className="space-y-6">
-      <div className="bg-gray-50 p-4 rounded-lg flex items-center gap-4">
-        <Package className="w-8 h-8 text-green-600" />
-        <h2 className="text-2xl font-semibold text-gray-900">Inventário</h2>
-      </div>
+    <div className="space-y-8">
+      <div className="bg-gradient-to-r from-green-50 to-green-100 p-6 rounded-xl shadow-lg">
+        <div className="flex items-center gap-4">
+          <Layers className="w-10 h-10 text-green-600" />
+          <h2 className="text-2xl font-bold text-gray-900">Inventário</h2>
+        </div>
 
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-semibold">Inventário</h2>
-        <div className="flex space-x-4">
+        <div className="flex flex-col md:flex-row gap-4 mt-6">
           <button
-            className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors duration-200"
+            className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors duration-200 shadow-sm hover:shadow-md"
             onClick={() => {
               setSelectedItem(null);
               setShowAddModal(true);
@@ -415,103 +432,106 @@ function Dashboard() {
             <Plus className="h-5 w-5 mr-2" />
             Novo Item
           </button>
+
+          <div className="flex-1 flex flex-col md:flex-row gap-4">
+            {/* Filtro por Departamento */}
+            <div className="relative flex-1 department-dropdown">
+              <button
+                onClick={() => setShowDepartmentDropdown(!showDepartmentDropdown)}
+                className="w-full bg-white border border-gray-200 rounded-lg py-2 px-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 hover:border-green-300"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="block truncate">Departamento: {activeDepartment}</span>
+                  <ChevronDown className="h-4 w-4 text-gray-400" />
+                </div>
+              </button>
+              {showDepartmentDropdown && (
+                <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-lg py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
+                  <div
+                    className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-green-50 transition-colors duration-150"
+                    onClick={() => {
+                      setActiveDepartment('Todos');
+                      setShowDepartmentDropdown(false);
+                    }}
+                  >
+                    Todos
+                  </div>
+                  {departments.map((department) => (
+                    <div
+                      key={department.id}
+                      className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-green-50 transition-colors duration-150"
+                      onClick={() => {
+                        setActiveDepartment(department.name);
+                        setShowDepartmentDropdown(false);
+                      }}
+                    >
+                      {department.name}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Filtro por Categoria */}
+            <div className="relative flex-1 category-dropdown">
+              <button
+                onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                className="w-full bg-white border border-gray-200 rounded-lg py-2 px-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 hover:border-green-300"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="block truncate">Categoria: {activeCategory}</span>
+                  <ChevronDown className="h-4 w-4 text-gray-400" />
+                </div>
+              </button>
+              {showCategoryDropdown && (
+                <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-lg py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
+                  <div
+                    className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-green-50 transition-colors duration-150"
+                    onClick={() => {
+                      setActiveCategory('Todos');
+                      setShowCategoryDropdown(false);
+                    }}
+                  >
+                    Todos
+                  </div>
+                  {categories.map((category) => (
+                    <div
+                      key={category.id}
+                      className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-green-50 transition-colors duration-150"
+                      onClick={() => {
+                        setActiveCategory(category.name);
+                        setShowCategoryDropdown(false);
+                      }}
+                    >
+                      {category.name}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Campo de busca */}
+            <div className="relative flex-1">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Buscar por nome do item..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-white border border-gray-200 rounded-lg py-2 pl-10 pr-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 hover:border-green-300"
+              />
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 mb-6">
-        {/* Filtro por Departamento */}
-        <div className="relative w-full md:w-64 department-dropdown">
-          <button
-            onClick={() => setShowDepartmentDropdown(!showDepartmentDropdown)}
-            className="w-full bg-white border border-gray-300 rounded-md py-2 px-3 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
-          >
-            <div className="flex items-center justify-between">
-              <span className="block truncate">Departamento: {activeDepartment}</span>
-              <ChevronDown className="h-4 w-4 text-gray-400" />
-            </div>
-          </button>
-          {showDepartmentDropdown && (
-            <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
-              <div
-                className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gray-50 transition-colors duration-150"
-                onClick={() => {
-                  setActiveDepartment('Todos');
-                  setShowDepartmentDropdown(false);
-                }}
-              >
-                Todos
-              </div>
-              {departments.map((department) => (
-                <div
-                  key={department.id}
-                  className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gray-50 transition-colors duration-150"
-                  onClick={() => {
-                    setActiveDepartment(department.name);
-                    setShowDepartmentDropdown(false);
-                  }}
-                >
-                  {department.name}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Filtro por Categoria */}
-        <div className="relative w-full md:w-64 category-dropdown">
-          <button
-            onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-            className="w-full bg-white border border-gray-300 rounded-md py-2 px-3 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
-          >
-            <div className="flex items-center justify-between">
-              <span className="block truncate">Categoria: {activeCategory}</span>
-              <ChevronDown className="h-4 w-4 text-gray-400" />
-            </div>
-          </button>
-          {showCategoryDropdown && (
-            <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
-              <div
-                className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gray-50 transition-colors duration-150"
-                onClick={() => {
-                  setActiveCategory('Todos');
-                  setShowCategoryDropdown(false);
-                }}
-              >
-                Todos
-              </div>
-              {categories.map((category) => (
-                <div
-                  key={category.id}
-                  className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gray-50 transition-colors duration-150"
-                  onClick={() => {
-                    setActiveCategory(category.name);
-                    setShowCategoryDropdown(false);
-                  }}
-                >
-                  {category.name}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Campo de busca por itens */}
-        <div className="w-full md:w-96">
-          <input
-            type="text"
-            placeholder="Buscar por nome do item..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-white border border-gray-300 rounded-md py-2 px-3 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
-          />
-        </div>
-      </div>
-
-      <div className="bg-white shadow-lg rounded-lg overflow-hidden">
+      <div className="bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead>
-              <tr className="bg-gray-50">
+            <thead className="bg-gray-50">
+              <tr>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Nome
                 </th>
@@ -548,10 +568,11 @@ function Dashboard() {
                     <div className="text-sm text-gray-500">{item.departments?.name || '-'}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium ${item.current_quantity <= item.minimum_quantity
-                      ? 'bg-red-100 text-red-800'
-                      : 'bg-green-100 text-green-800'
-                      }`}>
+                    <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium ${
+                      item.current_quantity <= item.minimum_quantity
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-green-100 text-green-800'
+                    }`}>
                       {item.current_quantity}
                     </div>
                   </td>
@@ -584,49 +605,30 @@ function Dashboard() {
         </div>
 
         {filteredItems.length === 0 && (
-          <div className="text-center py-8 text-gray-500">
-            Nenhum item encontrado
+          <div className="text-center py-12">
+            <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-500 text-lg">Nenhum item encontrado</p>
+            <p className="text-gray-400 text-sm mt-1">Tente ajustar os filtros ou adicionar um novo item</p>
           </div>
         )}
       </div>
-
-      {/* Delete Confirmation Modal */}
-      {deleteConfirmation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
-              Confirmar Exclusão
-            </h3>
-            <p className="text-sm text-gray-500 mb-4">
-              Tem certeza que deseja excluir este item?
-            </p>
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => setDeleteConfirmation(null)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={() => handleDeleteItem(deleteConfirmation)}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700"
-              >
-                Excluir
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 
   const renderHistorySection = () => (
-    <div className="space-y-6">
-      <div className="bg-gray-50 p-4 rounded-lg flex items-center gap-4">
-        <ClipboardList className="w-8 h-8 text-green-600" />
-        <h2 className="text-2xl font-semibold text-gray-900">Histórico de Movimentações</h2>
+    <div className="w-full">
+      <div className="space-y-4">
+        <div className="bg-gradient-to-r from-green-50 to-green-100 p-6 rounded-lg shadow">
+          <div className="flex items-center gap-4">
+            <History className="w-10 h-10 text-green-600" />
+            <h2 className="text-2xl font-bold text-gray-900">Histórico</h2>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <InventoryHistory history={history} onUpdate={fetchHistory} />
+        </div>
       </div>
-      <InventoryHistory history={history} onUpdate={fetchHistory} />
     </div>
   );
 
@@ -760,132 +762,211 @@ function Dashboard() {
 
   const renderManagementSection = () => (
     <div className="space-y-8">
-      <div className="bg-gray-50 p-4 rounded-lg flex items-center gap-4">
-        <Settings className="w-8 h-8 text-green-600" />
-        <h2 className="text-2xl font-semibold text-gray-900">Gerenciamento do Sistema</h2>
+      {/* Header */}
+      <div className="bg-gradient-to-r from-green-50 via-white to-green-50 rounded-2xl shadow-lg p-8 border border-green-100">
+        <div className="flex items-center gap-4">
+          <div className="bg-gradient-to-br from-green-500 to-green-600 p-3 rounded-xl shadow-md">
+            <Settings className="w-8 h-8 text-white" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold bg-gradient-to-r from-green-600 to-green-800 bg-clip-text text-transparent">
+              Gerenciamento do Sistema
+            </h2>
+          </div>
+        </div>
       </div>
 
+      {/* Cards de Gerenciamento */}
       <div className="grid grid-cols-1 gap-8">
         {/* Card de Departamentos */}
-        <div className="bg-white shadow-lg rounded-lg p-8">
-          <div className="flex items-center gap-3 mb-6">
-            <Building className="w-8 h-8 text-blue-600" />
-            <h3 className="text-2xl font-semibold">Departamentos</h3>
-          </div>
-          <p className="text-gray-600 mb-6 text-lg">
-            Gerencie os departamentos do sistema. Adicione, edite ou remova departamentos conforme necessário.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <h4 className="text-lg font-medium text-blue-800 mb-2">Departamentos Ativos</h4>
-              <p className="text-3xl font-bold text-blue-600">{departments.length}</p>
+        <div className="bg-gradient-to-br from-blue-50 via-white to-blue-50 rounded-2xl p-8 border border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-3 rounded-xl shadow-md">
+              <Building className="w-8 h-8 text-white" />
             </div>
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <h4 className="text-lg font-medium text-blue-800 mb-2">Itens por Departamento</h4>
+            <div>
+              <h3 className="text-2xl font-bold text-gray-900">Departamentos</h3>
+              <p className="text-gray-600 mt-1">Gerencie a estrutura organizacional do sistema</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-sm border border-blue-100">
+              <div className="flex items-center gap-3 mb-2">
+                <Building className="w-5 h-5 text-blue-600" />
+                <h4 className="text-lg font-medium text-blue-800">Departamentos Ativos</h4>
+              </div>
+              <p className="text-3xl font-bold text-blue-600">{departments.length}</p>
+              <p className="text-sm text-blue-600/80 mt-1">Total de departamentos cadastrados</p>
+            </div>
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-sm border border-blue-100">
+              <div className="flex items-center gap-3 mb-2">
+                <Package className="w-5 h-5 text-blue-600" />
+                <h4 className="text-lg font-medium text-blue-800">Itens por Departamento</h4>
+              </div>
               <p className="text-3xl font-bold text-blue-600">
                 {Math.round(items.length / (departments.length || 1))}
               </p>
+              <p className="text-sm text-blue-600/80 mt-1">Média de itens por departamento</p>
             </div>
           </div>
+
           <button
-            className="inline-flex items-center px-6 py-3 text-base font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors duration-200"
             onClick={() => handleOpenCategoryModal('departments')}
+            className="inline-flex items-center px-6 py-3 text-base font-medium text-white bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-md hover:shadow-lg"
           >
-            <Settings className="h-6 w-6 mr-2" />
+            <Settings className="h-5 w-5 mr-2" />
             Gerenciar Departamentos
           </button>
         </div>
 
         {/* Card de Categorias */}
-        <div className="bg-white shadow-lg rounded-lg p-8">
-          <div className="flex items-center gap-3 mb-6">
-            <Tag className="w-8 h-8 text-green-600" />
-            <h3 className="text-2xl font-semibold">Categorias</h3>
-          </div>
-          <p className="text-gray-600 mb-6 text-lg">
-            Gerencie as categorias dos itens. Crie novas categorias ou remova as existentes.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div className="bg-green-50 p-4 rounded-lg">
-              <h4 className="text-lg font-medium text-green-800 mb-2">Categorias Ativas</h4>
-              <p className="text-3xl font-bold text-green-600">{categories.length}</p>
+        <div className="bg-gradient-to-br from-green-50 via-white to-green-50 rounded-2xl p-8 border border-green-100 shadow-lg hover:shadow-xl transition-all duration-300">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="bg-gradient-to-br from-green-500 to-green-600 p-3 rounded-xl shadow-md">
+              <Tag className="w-8 h-8 text-white" />
             </div>
-            <div className="bg-green-50 p-4 rounded-lg">
-              <h4 className="text-lg font-medium text-green-800 mb-2">Itens por Categoria</h4>
+            <div>
+              <h3 className="text-2xl font-bold text-gray-900">Categorias</h3>
+              <p className="text-gray-600 mt-1">Organize seus itens por categorias</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-sm border border-green-100">
+              <div className="flex items-center gap-3 mb-2">
+                <Tag className="w-5 h-5 text-green-600" />
+                <h4 className="text-lg font-medium text-green-800">Categorias Ativas</h4>
+              </div>
+              <p className="text-3xl font-bold text-green-600">{categories.length}</p>
+              <p className="text-sm text-green-600/80 mt-1">Total de categorias cadastradas</p>
+            </div>
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-sm border border-green-100">
+              <div className="flex items-center gap-3 mb-2">
+                <Package className="w-5 h-5 text-green-600" />
+                <h4 className="text-lg font-medium text-green-800">Itens por Categoria</h4>
+              </div>
               <p className="text-3xl font-bold text-green-600">
                 {Math.round(items.length / (categories.length || 1))}
               </p>
+              <p className="text-sm text-green-600/80 mt-1">Média de itens por categoria</p>
             </div>
           </div>
+
           <button
-            className="inline-flex items-center px-6 py-3 text-base font-medium text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors duration-200"
             onClick={() => handleOpenCategoryModal('categories')}
+            className="inline-flex items-center px-6 py-3 text-base font-medium text-white bg-gradient-to-r from-green-600 to-green-700 rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-200 shadow-md hover:shadow-lg"
           >
-            <Settings className="h-6 w-6 mr-2" />
+            <Settings className="h-5 w-5 mr-2" />
             Gerenciar Categorias
           </button>
         </div>
 
         {/* Card de Estatísticas */}
-        <div className="bg-white shadow-lg rounded-lg p-8">
-          <div className="flex items-center gap-3 mb-6">
-            <BarChart2 className="w-8 h-8 text-purple-600" />
-            <h3 className="text-2xl font-semibold">Estatísticas do Sistema</h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-purple-50 p-4 rounded-lg">
-              <h4 className="text-lg font-medium text-purple-800 mb-2">Total de Usuários Ativos</h4>
-              <p className="text-3xl font-bold text-purple-600">{users.length}</p>
+        <div className="bg-gradient-to-br from-purple-50 via-white to-purple-50 rounded-2xl p-8 border border-purple-100 shadow-lg">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-3 rounded-xl shadow-md">
+              <BarChart2 className="w-8 h-8 text-white" />
             </div>
-            <div className="bg-purple-50 p-4 rounded-lg">
-              <h4 className="text-lg font-medium text-purple-800 mb-2">Total de Itens no Histórico</h4>
-              <p className="text-3xl font-bold text-purple-600">{history.length}</p>
-            </div>
-            <div className="bg-purple-50 p-4 rounded-lg">
-              <h4 className="text-lg font-medium text-purple-800 mb-2">Total de Itens Criados</h4>
-              <p className="text-3xl font-bold text-purple-600">{items.length}</p>
+            <div>
+              <h3 className="text-2xl font-bold text-gray-900">Estatísticas do Sistema</h3>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Card de Uso do Banco de Dados */}
-      <div className="bg-white rounded-lg shadow-lg p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <Database className="w-8 h-8 text-indigo-600" />
-          <h3 className="text-lg font-semibold">Uso do Banco de Dados</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-sm border border-purple-100">
+              <div className="flex items-center gap-3 mb-2">
+                <Users className="w-5 h-5 text-purple-600" />
+                <h4 className="text-lg font-medium text-purple-800">Usuários Ativos</h4>
+              </div>
+              <p className="text-3xl font-bold text-purple-600">{users.length}</p>
+              <p className="text-sm text-purple-600/80 mt-1">Usuários que realizaram movimentações</p>
+            </div>
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-sm border border-purple-100">
+              <div className="flex items-center gap-3 mb-2">
+                <History className="w-5 h-5 text-purple-600" />
+                <h4 className="text-lg font-medium text-purple-800">Movimentações</h4>
+              </div>
+              <p className="text-3xl font-bold text-purple-600">{history.length}</p>
+              <p className="text-sm text-purple-600/80 mt-1">Total de registros no histórico</p>
+            </div>
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-sm border border-purple-100">
+              <div className="flex items-center gap-3 mb-2">
+                <Package className="w-5 h-5 text-purple-600" />
+                <h4 className="text-lg font-medium text-purple-800">Total de Itens</h4>
+              </div>
+              <p className="text-3xl font-bold text-purple-600">{items.length}</p>
+              <p className="text-sm text-purple-600/80 mt-1">Itens cadastrados no sistema</p>
+            </div>
+          </div>
         </div>
-        <div className="space-y-4">
-          <div>
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-sm font-medium text-gray-700">Total de Registros</span>
-              <span className="text-sm font-medium text-gray-700">{databaseStats.totalRows} / 50.000</span>
+
+        {/* Card de Banco de Dados */}
+        <div className="bg-gradient-to-br from-indigo-50 via-white to-indigo-50 rounded-2xl p-8 border border-indigo-100 shadow-lg">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 p-3 rounded-xl shadow-md">
+              <Database className="w-8 h-8 text-white" />
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2.5">
-              <div
-                className="bg-indigo-600 h-2.5 rounded-full"
-                style={{ width: `${(databaseStats.totalRows / 50000) * 100}%` }}
-              ></div>
+            <div>
+              <h3 className="text-2xl font-bold text-gray-900">Uso do Banco de Dados</h3>
             </div>
-            <p className="text-xs text-gray-500 mt-1">
-              {Math.round((databaseStats.totalRows / 50000) * 100)}% do limite do plano gratuito
-            </p>
           </div>
-          <div>
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-sm font-medium text-gray-700">Armazenamento</span>
-              <span className="text-sm font-medium text-gray-700">{databaseStats.storageUsed} / 500MB</span>
+
+          <div className="space-y-6">
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-sm border border-indigo-100">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <Activity className="w-5 h-5 text-indigo-600" />
+                  <h4 className="text-lg font-medium text-indigo-800">Total de Registros</h4>
+                </div>
+                <span className="text-sm font-medium text-indigo-600">
+                  {databaseStats.totalRows} / 50.000
+                </span>
+              </div>
+              <div className="h-2.5 bg-indigo-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full transition-all duration-300"
+                  style={{ width: `${(databaseStats.totalRows / 50000) * 100}%` }}
+                />
+              </div>
+              <p className="text-sm text-indigo-600/80 mt-2">
+                {Math.round((databaseStats.totalRows / 50000) * 100)}% do limite do plano gratuito
+              </p>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2.5">
-              <div
-                className="bg-indigo-600 h-2.5 rounded-full"
-                style={{ width: `${(databaseStats.storageUsed / 500) * 100}%` }}
-              ></div>
+
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-sm border border-indigo-100">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <HardDrive className="w-5 h-5 text-indigo-600" />
+                  <h4 className="text-lg font-medium text-indigo-800">Armazenamento</h4>
+                </div>
+                <span className="text-sm font-medium text-indigo-600">
+                  {databaseStats.storageUsed} / 500MB
+                </span>
+              </div>
+              <div className="h-2.5 bg-indigo-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full transition-all duration-300"
+                  style={{ width: `${(databaseStats.storageUsed / 500) * 100}%` }}
+                />
+              </div>
+              <p className="text-sm text-indigo-600/80 mt-2">
+                {Math.round((databaseStats.storageUsed / 500) * 100)}% do limite do plano gratuito
+              </p>
             </div>
-            <p className="text-xs text-gray-500 mt-1">
-              {Math.round((databaseStats.storageUsed / 500) * 100)}% do limite do plano gratuito
-            </p>
           </div>
+
+          {databaseStats.totalRows > 40000 && (
+            <div className="mt-6 bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-xl p-4">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-yellow-600" />
+                <p className="text-sm font-medium text-yellow-800">Atenção: Limite do Plano Gratuito</p>
+              </div>
+              <p className="text-sm text-yellow-700 mt-2">
+                Você está próximo do limite de registros. Considere fazer backup dos dados antigos ou fazer upgrade do plano.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -927,6 +1008,20 @@ function Dashboard() {
           categories={categories}
           departments={departments}
           editItem={selectedItem}
+        />
+      )}
+
+      {showCategoryModal && (
+        <CategoryDepartmentModal
+          isOpen={showCategoryModal}
+          onClose={() => setShowCategoryModal(false)}
+          onSuccess={() => {
+            fetchCategories();
+            fetchDepartments();
+          }}
+          categories={categories}
+          departments={departments}
+          initialTab={modalInitialTab}
         />
       )}
     </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { Pencil, Trash2, X, Eye, Search, ArrowUpCircle, ArrowDownCircle, Filter } from 'lucide-react';
+import { Pencil, Trash2, X, Eye, Search, ArrowUpCircle, ArrowDownCircle, Filter, ChevronDown, Building } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
 interface HistoryItem {
@@ -95,145 +95,172 @@ export default function InventoryHistory({ history, onUpdate }: InventoryHistory
   }
 
   return (
-    <div className="bg-white rounded-lg shadow">
+    <div className="bg-white">
       <div className="p-4 border-b border-gray-200">
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          <div className="relative flex-1">
-            <input
-              type="text"
-              placeholder="Buscar por item, observação ou responsável..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
-          </div>
-          <div className="flex gap-2 w-full sm:w-auto">
-            <select
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value as 'todos' | 'entrada' | 'saída')}
-            >
-              <option value="todos">Todos os tipos</option>
-              <option value="entrada">Entradas</option>
-              <option value="saída">Saídas</option>
-            </select>
-            <select
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              value={filterDepartment}
-              onChange={(e) => setFilterDepartment(e.target.value)}
-            >
-              <option value="todos">Todos os departamentos</option>
-              {departments.map(dept => (
-                <option key={dept} value={dept}>{dept}</option>
-              ))}
-            </select>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex gap-3 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-48">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Filter className="h-4 w-4 text-gray-400" />
+                </div>
+                <select
+                  className="w-full pl-9 pr-3 py-2 text-sm bg-white border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors duration-200 hover:border-green-300 appearance-none cursor-pointer"
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value as 'todos' | 'entrada' | 'saída')}
+                >
+                  <option value="todos">Todos os tipos</option>
+                  <option value="entrada">Entradas</option>
+                  <option value="saída">Saídas</option>
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                  <ChevronDown className="h-4 w-4 text-gray-400" />
+                </div>
+              </div>
+
+              <div className="relative flex-1 sm:w-48">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Building className="h-4 w-4 text-gray-400" />
+                </div>
+                <select
+                  className="w-full pl-9 pr-3 py-2 text-sm bg-white border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors duration-200 hover:border-green-300 appearance-none cursor-pointer"
+                  value={filterDepartment}
+                  onChange={(e) => setFilterDepartment(e.target.value)}
+                >
+                  <option value="todos">Todos os departamentos</option>
+                  {departments.map(dept => (
+                    <option key={dept} value={dept}>{dept}</option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                  <ChevronDown className="h-4 w-4 text-gray-400" />
+                </div>
+              </div>
+            </div>
+
+            <div className="relative flex-1 sm:max-w-xs">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Buscar por item, observação ou responsável..."
+                className="w-full pl-9 pr-3 py-2 text-sm bg-white border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors duration-200 hover:border-green-300"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
           </div>
         </div>
       </div>
 
-      {filteredHistory.length > 0 ? (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Data
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Item
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Departamento
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Tipo
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Quantidade
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Responsável
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Observação
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Ações
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredHistory.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {format(new Date(item.created_at), 'dd/MM/yyyy HH:mm')}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{item.item_name}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{item.departments?.name || '-'}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      {item.type === 'entrada' ? (
-                        <ArrowUpCircle className="h-5 w-5 text-green-500 mr-1.5" />
-                      ) : (
-                        <ArrowDownCircle className="h-5 w-5 text-red-500 mr-1.5" />
-                      )}
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.type === 'entrada'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
-                          }`}
-                      >
-                        {item.type}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{item.quantity_changed}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{item.user_name || '-'}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm text-gray-900 max-w-xs truncate">
-                      {item.observation || '-'}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex items-center justify-end space-x-2">
-                      <button
-                        onClick={() => setSelectedItem(item)}
-                        className="text-gray-400 hover:text-gray-500"
-                        title="Visualizar"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => setEditingItem(item)}
-                        className="text-blue-400 hover:text-blue-500"
-                        title="Editar"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => setDeleteConfirmation(item.id)}
-                        className="text-red-400 hover:text-red-500"
-                        title="Excluir"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
+      <div className="overflow-x-auto">
+        <div className="inline-block min-w-full align-middle">
+          <div className="overflow-hidden">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    Data
+                  </th>
+                  <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    Item
+                  </th>
+                  <th scope="col" className="hidden md:table-cell px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    Departamento
+                  </th>
+                  <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    Tipo
+                  </th>
+                  <th scope="col" className="hidden sm:table-cell px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    Quantidade
+                  </th>
+                  <th scope="col" className="hidden lg:table-cell px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    Responsável
+                  </th>
+                  <th scope="col" className="hidden xl:table-cell px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Observação
+                  </th>
+                  <th scope="col" className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    Ações
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredHistory.map((item) => (
+                  <tr key={item.id} className="hover:bg-gray-50">
+                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                      {format(new Date(item.created_at), 'dd/MM/yyyy HH:mm')}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">{item.item_name}</div>
+                    </td>
+                    <td className="hidden md:table-cell px-3 py-2 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{item.departments?.name || '-'}</div>
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <div className="flex items-center">
+                        {item.type === 'entrada' ? (
+                          <ArrowUpCircle className="h-4 w-4 text-green-500 mr-1" />
+                        ) : (
+                          <ArrowDownCircle className="h-4 w-4 text-red-500 mr-1" />
+                        )}
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                            item.type === 'entrada'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-red-100 text-red-800'
+                          }`}
+                        >
+                          {item.type}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="hidden sm:table-cell px-3 py-2 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{item.quantity_changed}</div>
+                    </td>
+                    <td className="hidden lg:table-cell px-3 py-2 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{item.user_name || '-'}</div>
+                    </td>
+                    <td className="hidden xl:table-cell px-3 py-2">
+                      <div className="text-sm text-gray-900 max-w-xs truncate">
+                        {item.observation || '-'}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex items-center justify-end space-x-1">
+                        <button
+                          onClick={() => setSelectedItem(item)}
+                          className="text-gray-400 hover:text-gray-500 p-1"
+                          title="Visualizar"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => setEditingItem(item)}
+                          className="text-blue-400 hover:text-blue-500 p-1"
+                          title="Editar"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirmation(item.id)}
+                          className="text-red-400 hover:text-red-500 p-1"
+                          title="Excluir"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      ) : (
+      </div>
+
+      {filteredHistory.length === 0 && (
         <div className="p-8 text-center">
           <Filter className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <p className="text-gray-500 text-lg">Nenhum resultado encontrado</p>
