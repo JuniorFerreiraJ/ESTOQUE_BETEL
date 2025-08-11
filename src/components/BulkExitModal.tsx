@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, Minus, Package, AlertTriangle, User, FileText, Building, Tag, CheckCircle, ArrowRight } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { X, Minus, Package, AlertTriangle, User, FileText, Building, Tag, CheckCircle, ArrowRight, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
 interface BulkExitModalProps {
@@ -15,13 +15,15 @@ interface BulkExitModalProps {
     categories?: { name: string };
     departments?: { name: string };
   }>;
+  onRemoveItem?: (itemId: string) => void; // Nova prop para remover itens
 }
 
 export default function BulkExitModal({
   isOpen,
   onClose,
   onSuccess,
-  selectedItems
+  selectedItems,
+  onRemoveItem
 }: BulkExitModalProps) {
   const [formData, setFormData] = useState({
     user_name: '',
@@ -32,6 +34,17 @@ export default function BulkExitModal({
   const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Criar lista única de departamentos para evitar duplicatas
+  const uniqueDepartments = useMemo(() => {
+    const deptMap = new Map();
+    selectedItems.forEach(item => {
+      if (item.department_id && item.departments?.name) {
+        deptMap.set(item.department_id, item.departments.name);
+      }
+    });
+    return Array.from(deptMap.entries()).map(([id, name]) => ({ id, name }));
+  }, [selectedItems]);
 
   // Inicializar quantidades quando o modal abre
   useEffect(() => {
@@ -66,6 +79,12 @@ export default function BulkExitModal({
 
     setItemQuantities(prev => ({ ...prev, [itemId]: quantity }));
     setError(''); // Limpar erro quando corrigir
+  };
+
+  const handleRemoveItem = (itemId: string) => {
+    if (onRemoveItem) {
+      onRemoveItem(itemId);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -157,7 +176,7 @@ export default function BulkExitModal({
               <div>
                 <h2 className="text-2xl font-bold text-gray-800">Saída em Lote</h2>
                 <p className="text-gray-600 flex items-center gap-2">
-                  <Package className="w-4 h-4" />
+                  <Package className="w-4 w-4" />
                   {selectedItems.length} item(s) selecionado(s)
                 </p>
               </div>
@@ -204,9 +223,9 @@ export default function BulkExitModal({
                 required
               >
                 <option value="">Selecione um departamento</option>
-                {selectedItems.map(item => (
-                  <option key={item.department_id} value={item.department_id}>
-                    {item.departments?.name || 'Departamento'}
+                {uniqueDepartments.map(dept => (
+                  <option key={dept.id} value={dept.id}>
+                    {dept.name}
                   </option>
                 ))}
               </select>
@@ -269,6 +288,17 @@ export default function BulkExitModal({
                           <ArrowRight className="w-3 h-3 text-red-600" />
                         </div>
                       </div>
+                      {/* Botão para remover item */}
+                      {onRemoveItem && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveItem(item.id)}
+                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors duration-200 hover:scale-105"
+                          title="Remover item da seleção"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
