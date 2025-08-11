@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { format } from 'date-fns';
-import { Pencil, Trash2, X, Eye, Search, ArrowUpCircle, ArrowDownCircle, Filter, ChevronDown, Building } from 'lucide-react';
+import { Pencil, Trash2, X, Eye, Search, ArrowUpCircle, ArrowDownCircle, Filter, ChevronDown, Building, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
 interface HistoryItem {
@@ -30,25 +30,59 @@ export default function InventoryHistory({ history, onUpdate }: InventoryHistory
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'todos' | 'entrada' | 'saída'>('todos');
   const [filterDepartment, setFilterDepartment] = useState<string>('todos');
+  const [showTypeDropdown, setShowTypeDropdown] = useState(false);
+  const [showDepartmentDropdown, setShowDepartmentDropdown] = useState(false);
+  
+  // Paginação
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(20); // 20 itens por página
 
-  // Get unique departments from history
-  const departments = Array.from(new Set(history.map(item => item.departments?.name || 'Sem Departamento')));
+  // Memoizar departamentos únicos para evitar recálculos
+  const departments = useMemo(() => 
+    Array.from(new Set(history.map(item => item.departments?.name || 'Sem Departamento'))),
+    [history]
+  );
 
-  // Filter history based on search term and filters
-  const filteredHistory = history.filter(item => {
-    const matchesSearch =
-      item.item_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.observation?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.user_name?.toLowerCase().includes(searchTerm.toLowerCase());
+  // Memoizar histórico filtrado
+  const filteredHistory = useMemo(() => {
+    return history.filter(item => {
+      const matchesSearch =
+        item.item_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.observation?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.user_name?.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesType = filterType === 'todos' || item.type === filterType;
-    const matchesDepartment = filterDepartment === 'todos' || item.departments?.name === filterDepartment;
+      const matchesType = filterType === 'todos' || item.type === filterType;
+      const matchesDepartment = filterDepartment === 'todos' || item.departments?.name === filterDepartment;
 
-    return matchesSearch && matchesType && matchesDepartment;
-  });
+      return matchesSearch && matchesType && matchesDepartment;
+    });
+  }, [history, searchTerm, filterType, filterDepartment]);
+
+  // Calcular dados da paginação
+  const paginationData = useMemo(() => {
+    const totalItems = filteredHistory.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const currentItems = filteredHistory.slice(startIndex, endIndex);
+
+    return {
+      totalItems,
+      totalPages,
+      currentItems,
+      startIndex: startIndex + 1,
+      endIndex: Math.min(endIndex, totalItems),
+      hasNextPage: currentPage < totalPages,
+      hasPrevPage: currentPage > 1
+    };
+  }, [filteredHistory, currentPage, itemsPerPage]);
+
+  // Resetar página quando filtros mudarem
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterType, filterDepartment]);
 
   useEffect(() => {
-    console.log('InventoryHistory recebeu histórico:', history);
     if (!history || history.length === 0) {
       setError('Nenhum histórico encontrado');
     } else {
@@ -56,7 +90,18 @@ export default function InventoryHistory({ history, onUpdate }: InventoryHistory
     }
   }, [history]);
 
-  const handleDelete = async (id: string) => {
+  // Otimizar handlers com useCallback
+  const handleTypeFilter = useCallback((type: 'todos' | 'entrada' | 'saída') => {
+    setFilterType(type);
+    setShowTypeDropdown(false);
+  }, []);
+
+  const handleDepartmentFilter = useCallback((dept: string) => {
+    setFilterDepartment(dept);
+    setShowDepartmentDropdown(false);
+  }, []);
+
+  const handleDelete = useCallback(async (id: string) => {
     try {
       const { error } = await supabase.from('inventory_history').delete().eq('id', id);
       if (error) throw error;
@@ -66,9 +111,9 @@ export default function InventoryHistory({ history, onUpdate }: InventoryHistory
       console.error('Error deleting history item:', error);
       setError('Erro ao excluir item do histórico');
     }
-  };
+  }, [onUpdate]);
 
-  const handleEdit = async (item: HistoryItem) => {
+  const handleEdit = useCallback(async (item: HistoryItem) => {
     try {
       const { error } = await supabase
         .from('inventory_history')
@@ -84,7 +129,40 @@ export default function InventoryHistory({ history, onUpdate }: InventoryHistory
       console.error('Error updating history item:', error);
       setError('Erro ao atualizar item do histórico');
     }
-  };
+  }, [onUpdate]);
+
+  // Handlers de paginação
+  const goToPage = useCallback((page: number) => {
+    setCurrentPage(page);
+  }, []);
+
+  const goToNextPage = useCallback(() => {
+    if (paginationData.hasNextPage) {
+      setCurrentPage(prev => prev + 1);
+    }
+  }, [paginationData.hasNextPage]);
+
+  const goToPrevPage = useCallback(() => {
+    if (paginationData.hasPrevPage) {
+      setCurrentPage(prev => prev - 1);
+    }
+  }, [paginationData.hasPrevPage]);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.type-dropdown')) {
+        setShowTypeDropdown(false);
+      }
+      if (!target.closest('.department-dropdown')) {
+        setShowDepartmentDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   if (error) {
     return (
@@ -100,44 +178,87 @@ export default function InventoryHistory({ history, onUpdate }: InventoryHistory
         <div className="flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex gap-3 w-full sm:w-auto">
-              <div className="relative flex-1 sm:w-48">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Filter className="h-4 w-4 text-gray-400" />
-                </div>
-                <select
-                  className="w-full pl-9 pr-3 py-2 text-sm bg-white border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors duration-200 hover:border-green-300 appearance-none cursor-pointer"
-                  value={filterType}
-                  onChange={(e) => setFilterType(e.target.value as 'todos' | 'entrada' | 'saída')}
+              {/* Filtro por Tipo - Melhorado */}
+              <div className="relative flex-1 sm:w-48 type-dropdown">
+                <button
+                  onClick={() => setShowTypeDropdown(prev => !prev)}
+                  className="w-full bg-white border border-gray-200 rounded-lg py-2.5 px-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 hover:border-green-300 hover:shadow-md flex items-center justify-between"
                 >
-                  <option value="todos">Todos os tipos</option>
-                  <option value="entrada">Entradas</option>
-                  <option value="saída">Saídas</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                  <ChevronDown className="h-4 w-4 text-gray-400" />
-                </div>
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-4 w-4 text-gray-500" />
+                    <span className="block truncate">
+                      {filterType === 'todos' ? 'Todos os tipos' : 
+                       filterType === 'entrada' ? 'Entradas' : 'Saídas'}
+                    </span>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-gray-400 transition-transform duration-200" />
+                </button>
+                {showTypeDropdown && (
+                  <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-lg py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm border border-gray-100">
+                    <div
+                      className="cursor-pointer select-none relative py-2.5 pl-3 pr-9 hover:bg-green-50 transition-colors duration-150 flex items-center gap-2"
+                      onClick={() => handleTypeFilter('todos')}
+                    >
+                      <Filter className="h-4 w-4 text-gray-500" />
+                      Todos os tipos
+                    </div>
+                    <div
+                      className="cursor-pointer select-none relative py-2.5 pl-3 pr-9 hover:bg-green-50 transition-colors duration-150 flex items-center gap-2"
+                      onClick={() => handleTypeFilter('entrada')}
+                    >
+                      <ArrowUpCircle className="h-4 w-4 text-green-500" />
+                      Entradas
+                    </div>
+                    <div
+                      className="cursor-pointer select-none relative py-2.5 pl-3 pr-9 hover:bg-green-50 transition-colors duration-150 flex items-center gap-2"
+                      onClick={() => handleTypeFilter('saída')}
+                    >
+                      <ArrowDownCircle className="h-4 w-4 text-red-500" />
+                      Saídas
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <div className="relative flex-1 sm:w-48">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Building className="h-4 w-4 text-gray-400" />
-                </div>
-                <select
-                  className="w-full pl-9 pr-3 py-2 text-sm bg-white border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors duration-200 hover:border-green-300 appearance-none cursor-pointer"
-                  value={filterDepartment}
-                  onChange={(e) => setFilterDepartment(e.target.value)}
+              {/* Filtro por Departamento - Melhorado */}
+              <div className="relative flex-1 sm:w-48 department-dropdown">
+                <button
+                  onClick={() => setShowDepartmentDropdown(prev => !prev)}
+                  className="w-full bg-white border border-gray-200 rounded-lg py-2.5 px-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 hover:border-green-300 hover:shadow-md flex items-center justify-between"
                 >
-                  <option value="todos">Todos os departamentos</option>
-                  {departments.map(dept => (
-                    <option key={dept} value={dept}>{dept}</option>
-                  ))}
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                  <ChevronDown className="h-4 w-4 text-gray-400" />
-                </div>
+                  <div className="flex items-center gap-2">
+                    <Building className="h-4 w-4 text-gray-500" />
+                    <span className="block truncate">
+                      {filterDepartment === 'todos' ? 'Todos os departamentos' : filterDepartment}
+                    </span>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-gray-400 transition-transform duration-200" />
+                </button>
+                {showDepartmentDropdown && (
+                  <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-lg py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm border border-gray-100">
+                    <div
+                      className="cursor-pointer select-none relative py-2.5 pl-3 pr-9 hover:bg-green-50 transition-colors duration-150 flex items-center gap-2"
+                      onClick={() => handleDepartmentFilter('todos')}
+                    >
+                      <Building className="h-4 w-4 text-gray-500" />
+                      Todos os departamentos
+                    </div>
+                    {departments.map(dept => (
+                      <div
+                        key={dept}
+                        className="cursor-pointer select-none relative py-2.5 pl-3 pr-9 hover:bg-green-50 transition-colors duration-150 flex items-center gap-2"
+                        onClick={() => handleDepartmentFilter(dept)}
+                      >
+                        <Building className="h-4 w-4 text-blue-500" />
+                        {dept}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
+            {/* Campo de busca */}
             <div className="relative flex-1 sm:max-w-xs">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Search className="h-4 w-4 text-gray-400" />
@@ -145,11 +266,21 @@ export default function InventoryHistory({ history, onUpdate }: InventoryHistory
               <input
                 type="text"
                 placeholder="Buscar por item, observação ou responsável..."
-                className="w-full pl-9 pr-3 py-2 text-sm bg-white border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors duration-200 hover:border-green-300"
+                className="w-full pl-9 pr-3 py-2 text-sm bg-white border border-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors hover:border-green-300"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
+          </div>
+
+          {/* Info da paginação */}
+          <div className="flex items-center justify-between text-sm text-gray-600">
+            <span>
+              Mostrando {paginationData.startIndex} a {paginationData.endIndex} de {paginationData.totalItems} registros
+            </span>
+            <span>
+              Página {currentPage} de {paginationData.totalPages}
+            </span>
           </div>
         </div>
       </div>
@@ -187,7 +318,7 @@ export default function InventoryHistory({ history, onUpdate }: InventoryHistory
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredHistory.map((item) => (
+                {paginationData.currentItems.map((item) => (
                   <tr key={item.id} className="hover:bg-gray-50">
                     <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
                       {format(new Date(item.created_at), 'dd/MM/yyyy HH:mm')}
@@ -199,22 +330,15 @@ export default function InventoryHistory({ history, onUpdate }: InventoryHistory
                       <div className="text-sm text-gray-900">{item.departments?.name || '-'}</div>
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap">
-                      <div className="flex items-center">
-                        {item.type === 'entrada' ? (
-                          <ArrowUpCircle className="h-4 w-4 text-green-500 mr-1" />
-                        ) : (
-                          <ArrowDownCircle className="h-4 w-4 text-red-500 mr-1" />
-                        )}
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                            item.type === 'entrada'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-red-100 text-red-800'
-                          }`}
-                        >
-                          {item.type}
-                        </span>
-                      </div>
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          item.type === 'entrada'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}
+                      >
+                        {item.type}
+                      </span>
                     </td>
                     <td className="hidden sm:table-cell px-3 py-2 whitespace-nowrap">
                       <div className="text-sm text-gray-900">{item.quantity_changed}</div>
@@ -259,6 +383,72 @@ export default function InventoryHistory({ history, onUpdate }: InventoryHistory
           </div>
         </div>
       </div>
+
+      {/* Controles de paginação */}
+      {paginationData.totalPages > 1 && (
+        <div className="px-4 py-3 border-t border-gray-200 bg-gray-50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-700">
+                Itens por página:
+              </span>
+              <span className="text-sm font-medium text-gray-900">
+                {itemsPerPage}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* Botão anterior */}
+              <button
+                onClick={goToPrevPage}
+                disabled={!paginationData.hasPrevPage}
+                className="px-3 py-1 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+
+              {/* Números das páginas */}
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, paginationData.totalPages) }, (_, i) => {
+                  let pageNumber;
+                  if (paginationData.totalPages <= 5) {
+                    pageNumber = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNumber = i + 1;
+                  } else if (currentPage >= paginationData.totalPages - 2) {
+                    pageNumber = paginationData.totalPages - 4 + i;
+                  } else {
+                    pageNumber = currentPage - 2 + i;
+                  }
+
+                  return (
+                    <button
+                      key={pageNumber}
+                      onClick={() => goToPage(pageNumber)}
+                      className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                        pageNumber === currentPage
+                          ? 'bg-green-600 text-white'
+                          : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {pageNumber}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Botão próximo */}
+              <button
+                onClick={goToNextPage}
+                disabled={!paginationData.hasNextPage}
+                className="px-3 py-1 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {filteredHistory.length === 0 && (
         <div className="p-8 text-center">

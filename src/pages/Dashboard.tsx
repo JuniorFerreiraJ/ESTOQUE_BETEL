@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, X, Settings, Trash2, ChevronDown, AlertTriangle, ChevronLeft, ChevronRight, Search, Package, TrendingUp, BarChart2, Users, ShoppingCart, LogOut, Home, List, FileText, ClipboardList, Calendar, Tag, Building, Database, Activity, AlertCircle, PieChart, History, Layers, ArrowUpCircle, ArrowDownCircle, HardDrive } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Plus, X, Settings, Trash2, ChevronDown, AlertTriangle, ChevronLeft, ChevronRight, Search, Package, TrendingUp, BarChart2, Users, ShoppingCart, LogOut, Home, List, FileText, ClipboardList, Calendar, Tag, Building, Database, Activity, AlertCircle, PieChart, History, Layers, ArrowUpCircle, ArrowDownCircle, HardDrive, Minus, CheckSquare, Square } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import AddEditItemModal from '../components/AddEditItemModal';
 import CategoryDepartmentModal from '../components/CategoryDepartmentModal';
@@ -11,6 +11,7 @@ import MovementChart from '../components/MovementChart';
 import AnalyticsSection from '../components/AnalyticsSection';
 import DepartmentDistributionChart from '../components/DepartmentDistributionChart';
 import Devolucoes from './Devolucoes';
+import BulkExitModal from '../components/BulkExitModal';
 
 interface HistoryItem {
   id: number;
@@ -55,6 +56,8 @@ function Dashboard() {
     storageUsed: 0
   });
   const [users, setUsers] = useState<any[]>([]);
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [showBulkExitModal, setShowBulkExitModal] = useState(false);
 
   useEffect(() => {
     fetchCategories();
@@ -233,6 +236,27 @@ function Dashboard() {
     setSelectedItem(null);
   };
 
+  // Filtrar categorias baseado no departamento selecionado
+  const filteredCategories = useMemo(() => {
+    if (activeDepartment === 'Todos') {
+      return categories;
+    }
+    
+    // Buscar itens que pertencem ao departamento selecionado
+    const departmentItems = items.filter(item => 
+      item.departments?.name === activeDepartment
+    );
+    
+    // Extrair categorias únicas desses itens
+    const departmentCategoryIds = new Set(
+      departmentItems.map(item => item.category_id)
+    );
+    
+    return categories.filter(category => 
+      departmentCategoryIds.has(category.id)
+    );
+  }, [categories, items, activeDepartment]);
+
   const filteredItems = items.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesDepartment = activeDepartment === 'Todos' || item.departments?.name === activeDepartment;
@@ -258,6 +282,54 @@ function Dashboard() {
   const handleOpenCategoryModal = (tab: 'categories' | 'departments') => {
     setModalInitialTab(tab);
     setShowCategoryModal(true);
+  };
+
+  // Resetar categoria quando departamento mudar
+  const handleDepartmentChange = (departmentName: string) => {
+    setActiveDepartment(departmentName);
+    setShowDepartmentDropdown(false);
+    
+    // Se a categoria atual não existe no novo departamento, resetar para "Todos"
+    if (departmentName !== 'Todos' && activeCategory !== 'Todos') {
+      const departmentItems = items.filter(item => 
+        item.departments?.name === departmentName
+      );
+      const departmentCategoryIds = new Set(
+        departmentItems.map(item => item.category_id)
+      );
+      const currentCategory = categories.find(cat => cat.name === activeCategory);
+      
+      if (currentCategory && !departmentCategoryIds.has(currentCategory.id)) {
+        setActiveCategory('Todos');
+      }
+    }
+  };
+
+  const handleSelectItem = (itemId: string) => {
+    setSelectedItems(prev => 
+      prev.includes(itemId) 
+        ? prev.filter(id => id !== itemId)
+        : [...prev, itemId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedItems.length === filteredItems.length) {
+      setSelectedItems([]);
+    } else {
+      setSelectedItems(filteredItems.map(item => item.id));
+    }
+  };
+
+  const handleBulkExit = () => {
+    if (selectedItems.length === 0) return;
+    setShowBulkExitModal(true);
+  };
+
+  const handleBulkExitSuccess = () => {
+    setSelectedItems([]);
+    fetchItems();
+    fetchHistory();
   };
 
   const fetchUsers = async () => {
@@ -422,16 +494,28 @@ function Dashboard() {
         </div>
 
         <div className="flex flex-col md:flex-row gap-4 mt-6">
-          <button
-            className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors duration-200 shadow-sm hover:shadow-md"
-            onClick={() => {
-              setSelectedItem(null);
-              setShowAddModal(true);
-            }}
-          >
-            <Plus className="h-5 w-5 mr-2" />
-            Novo Item
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors duration-200 shadow-sm hover:shadow-md"
+              onClick={() => {
+                setSelectedItem(null);
+                setShowAddModal(true);
+              }}
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              Novo Item
+            </button>
+
+            {selectedItems.length > 0 && (
+              <button
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors duration-200 shadow-sm hover:shadow-md"
+                onClick={handleBulkExit}
+              >
+                <Minus className="h-5 w-5 mr-2" />
+                Saída em Lote ({selectedItems.length})
+              </button>
+            )}
+          </div>
 
           <div className="flex-1 flex flex-col md:flex-row gap-4">
             {/* Filtro por Departamento */}
@@ -460,10 +544,7 @@ function Dashboard() {
                     <div
                       key={department.id}
                       className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-green-50 transition-colors duration-150"
-                      onClick={() => {
-                        setActiveDepartment(department.name);
-                        setShowDepartmentDropdown(false);
-                      }}
+                      onClick={() => handleDepartmentChange(department.name)}
                     >
                       {department.name}
                     </div>
@@ -494,18 +575,24 @@ function Dashboard() {
                   >
                     Todos
                   </div>
-                  {categories.map((category) => (
-                    <div
-                      key={category.id}
-                      className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-green-50 transition-colors duration-150"
-                      onClick={() => {
-                        setActiveCategory(category.name);
-                        setShowCategoryDropdown(false);
-                      }}
-                    >
-                      {category.name}
+                  {filteredCategories.length > 0 ? (
+                    filteredCategories.map((category) => (
+                      <div
+                        key={category.id}
+                        className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-green-50 transition-colors duration-150"
+                        onClick={() => {
+                          setActiveCategory(category.name);
+                          setShowCategoryDropdown(false);
+                        }}
+                      >
+                        {category.name}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="py-2 pl-3 pr-9 text-sm text-gray-500 italic">
+                      Nenhuma categoria disponível
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
             </div>
@@ -533,6 +620,20 @@ function Dashboard() {
             <thead className="bg-gray-50">
               <tr>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <div className="flex items-center">
+                    <button
+                      onClick={handleSelectAll}
+                      className="p-1 hover:bg-gray-200 rounded transition-colors"
+                    >
+                      {selectedItems.length === filteredItems.length && filteredItems.length > 0 ? (
+                        <CheckSquare className="w-4 h-4 text-green-600" />
+                      ) : (
+                        <Square className="w-4 h-4 text-gray-400" />
+                      )}
+                    </button>
+                  </div>
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Nome
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -558,6 +659,18 @@ function Dashboard() {
                   key={item.id}
                   className="hover:bg-gray-50 transition-colors duration-150"
                 >
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <button
+                      onClick={() => handleSelectItem(item.id)}
+                      className="p-1 hover:bg-gray-200 rounded transition-colors"
+                    >
+                      {selectedItems.includes(item.id) ? (
+                        <CheckSquare className="w-4 h-4 text-green-600" />
+                      ) : (
+                        <Square className="w-4 h-4 text-gray-400" />
+                      )}
+                    </button>
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">{item.name}</div>
                   </td>
@@ -1024,6 +1137,14 @@ function Dashboard() {
           initialTab={modalInitialTab}
         />
       )}
+
+      {/* Modal de Saída em Lote */}
+      <BulkExitModal
+        isOpen={showBulkExitModal}
+        onClose={() => setShowBulkExitModal(false)}
+        onSuccess={handleBulkExitSuccess}
+        selectedItems={filteredItems.filter(item => selectedItems.includes(item.id))}
+      />
     </div>
   );
 }
