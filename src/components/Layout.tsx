@@ -9,10 +9,12 @@ import {
   Layers,
   History,
   Settings,
-  ClipboardList
+  ClipboardList,
+  Smartphone,
+  Laptop
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -21,23 +23,37 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   const { signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeSection, setActiveSection] = useState('dashboard');
 
   useEffect(() => {
-    // Get initial active section from URL hash
-    const hash = window.location.hash.replace('#', '') || 'dashboard';
-    setActiveSection(hash);
+    // Determine active section based on current path
+    const path = location.pathname;
+    if (path === '/chips') {
+      setActiveSection('chips');
+    } else if (path === '/ativos') {
+      setActiveSection('ativos');
+    } else {
+      // For dashboard routes, use hash
+      const hash = window.location.hash.replace('#', '') || 'dashboard';
+      setActiveSection(hash);
+    }
+  }, [location.pathname]);
 
-    // Listen for hash changes
+  useEffect(() => {
+    // Listen for hash changes only for dashboard sections
     const handleHashChange = () => {
-      const newHash = window.location.hash.replace('#', '') || 'dashboard';
-      setActiveSection(newHash);
+      const path = location.pathname;
+      if (path === '/' || path === '/dashboard') {
+        const newHash = window.location.hash.replace('#', '') || 'dashboard';
+        setActiveSection(newHash);
+      }
     };
 
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
+  }, [location.pathname]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -45,8 +61,20 @@ export default function Layout({ children }: LayoutProps) {
   };
 
   const handleNavigation = (section: string) => {
-    window.location.hash = section;
-    setActiveSection(section);
+    if (section === 'chips') {
+      navigate('/chips');
+      setActiveSection('chips');
+    } else if (section === 'ativos') {
+      navigate('/ativos');
+      setActiveSection('ativos');
+    } else {
+      navigate('/');
+      // Use setTimeout to ensure navigation completes before setting hash
+      setTimeout(() => {
+        window.location.hash = section;
+        setActiveSection(section);
+      }, 0);
+    }
   };
 
   return (
@@ -128,6 +156,28 @@ export default function Layout({ children }: LayoutProps) {
             >
               <ClipboardList className="h-5 w-5 mr-3" />
               {sidebarOpen && 'Devoluções'}
+            </button>
+
+            <button
+              onClick={() => handleNavigation('chips')}
+              className={`flex items-center px-3 py-3 text-sm font-medium rounded-md w-full ${activeSection === 'chips'
+                ? 'bg-green-600 text-white'
+                : 'text-green-100 hover:bg-green-600 hover:text-white'
+                }`}
+            >
+              <Smartphone className="h-5 w-5 mr-3" />
+              {sidebarOpen && 'Chips'}
+            </button>
+
+            <button
+              onClick={() => handleNavigation('ativos')}
+              className={`flex items-center px-3 py-3 text-sm font-medium rounded-md w-full ${activeSection === 'ativos'
+                ? 'bg-green-600 text-white'
+                : 'text-green-100 hover:bg-green-600 hover:text-white'
+                }`}
+            >
+              <Laptop className="h-5 w-5 mr-3" />
+              {sidebarOpen && 'Ativos'}
             </button>
 
             <button
