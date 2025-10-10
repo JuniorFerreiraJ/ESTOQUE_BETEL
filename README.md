@@ -1,110 +1,129 @@
-# Sistema de Controle de Estoque - Betel
+## Sistema de Controle de Estoque - Betel
 
-Sistema de gerenciamento de estoque desenvolvido para controle de itens, departamentos e categorias, com funcionalidades de análise e histórico de movimentações.
+Aplicação web para gerenciamento de estoque, chips corporativos e ativos (notebooks, celulares etc.), com autenticação via Supabase, filtros por departamento, histórico e análises.
 
-## 🚀 Funcionalidades
+### 🚀 Funcionalidades
 
 - **Dashboard**
-  - Visão geral do estoque
-  - Estatísticas em tempo real
-  - Gráficos de distribuição por departamento
-  - Alertas de itens com estoque baixo
-
-- **Inventário**
-  - Cadastro e edição de itens
-  - Filtros por departamento e categoria
-  - Busca por nome do item
-  - Controle de quantidade mínima
-
-- **Histórico**
-  - Registro de todas as movimentações
-  - Entradas e saídas de itens
-  - Rastreamento por departamento
-  - Histórico detalhado com data e responsável
-
-- **Análise**
-  - Gráficos e estatísticas
+  - Visão geral com cartões e gráficos
   - Distribuição por departamento
-  - Média de movimentações
-  - Status do estoque
+  - Indicadores e alertas
 
-- **Gerenciamento**
-  - Controle de departamentos
-  - Gestão de categorias
-  - Estatísticas do sistema
+- **Chips**
+  - Cadastro/edição de chips (Claro, Vivo, etc.)
+  - Filtro por empresa e departamento
+  - Controle de usuário atual, plano e custo mensal
+  - Histórico de ações
+  - Paleta visual padronizada com “Ativos”
 
-## 🛠️ Tecnologias Utilizadas
+- **Ativos**
+  - Cadastro/edição de equipamentos (notebook, celular, tablet, outros)
+  - Filtros por tipo, status e departamento
+  - “Valor Total” formatado (ex.: 14k)
+  - Status: ativo, inativo, manutenção, fora de uso
+  - Data de Entrega (em vez de compra)
+  - Garantia opcional: exibe “Desconhecida” quando não informada
+  - Alertas para garantias próximas do vencimento (quando houver data)
+  - Histórico de ações
 
-- React.js
-- TypeScript
+- **Devoluções (quando habilitado)**
+  - Histórico detalhado de movimentações
+
+### 🛠️ Tecnologias
+
+- React + TypeScript + Vite
 - Tailwind CSS
-- Supabase (Banco de dados e Autenticação)
-- Recharts (Gráficos)
-- Lucide React (Ícones)
+- Supabase (Banco + Auth)
+- Lucide React (ícones)
+- Recharts (gráficos)
+- React Router
 
-## ⚙️ Requisitos
+### ⚙️ Requisitos
 
-- Node.js 16+
+- Node.js 18+
 - npm ou yarn
-- Conta no Supabase
+- Conta no Supabase (projeto e chaves)
 
-## 🔧 Instalação
+### 🔧 Instalação
 
-1. Clone o repositório:
+1) Clonar o repositório:
 ```bash
-git clone [url-do-repositorio]
-cd estoque-betel
+git clone https://github.com/JuniorFerreiraJ/ESTOQUE_BETEL.git
+cd ESTOQUE_BETEL
 ```
 
-2. Instale as dependências:
+2) Instalar dependências:
 ```bash
 npm install
 # ou
 yarn install
 ```
 
-3. Configure as variáveis de ambiente:
-Crie um arquivo `.env.local` na raiz do projeto e adicione:
+3) Variáveis de ambiente:
+Crie um arquivo `.env.local` na raiz com:
 ```env
 VITE_SUPABASE_URL=sua_url_do_supabase
 VITE_SUPABASE_ANON_KEY=sua_chave_anonima_do_supabase
 ```
 
-4. Inicie o servidor de desenvolvimento:
+4) Rodar em desenvolvimento:
 ```bash
 npm run dev
 # ou
 yarn dev
 ```
 
-## 📦 Deploy
+### 🗄️ Banco de Dados (Supabase)
 
-Para fazer o deploy da aplicação:
+Tabelas principais utilizadas:
+- `assets` (ativos)
+  - Campos importantes: `asset_type`, `brand`, `model`, `serial_number`, `department`, `current_user_name`, `status`, `delivery_date`, `purchase_value`, `warranty_expiry` (pode ser NULL)
+- `asset_history` (histórico de ativos)
+- `chips` (chips corporativos)
+  - Campos importantes: `phone_number`, `company`, `department`, `current_user_name`, `status`, `plan`, `monthly_cost`
+- `chip_history` (histórico de chips)
 
-1. Construa o projeto:
-```bash
-npm run build
-# ou
-yarn build
+Observações:
+- “Data de Entrega” substitui “Data de Compra” nos ativos.
+- `status` de ativos inclui `fora_uso` (substitui “perdido”).
+- `warranty_expiry` nos ativos é opcional (NULL permitido). Caso esteja NOT NULL no seu banco, rode:
+```sql
+alter table public.assets
+  alter column warranty_expiry drop not null;
 ```
 
-2. O diretório `dist` será criado com os arquivos otimizados para produção
+### ▶️ Scripts úteis
 
-3. Faça o deploy para sua plataforma preferida (Vercel, Netlify, etc)
+- Iniciar dev: `npm run dev`
+- Build: `npm run build`
+- Preview do build: `npm run preview`
+- Lint (se configurado): `npm run lint`
 
-## 🗄️ Estrutura do Banco de Dados
+### 📦 Deploy
 
-O projeto utiliza as seguintes tabelas no Supabase:
+- Build de produção:
+```bash
+npm run build
+```
 
-- `inventory_items`: Itens do estoque
-- `categories`: Categorias dos itens
-- `departments`: Departamentos
-- `inventory_history`: Histórico de movimentações
+- Saída em `dist/`. Faça o deploy na sua plataforma (Netlify, Vercel, etc.).
+- Para Netlify: o projeto já possui `netlify.toml`. Configure as variáveis `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` no painel da plataforma.
 
-## 👥 Autores
+### 🔐 Autenticação
 
-- Junior Ferreira - Desenvolvedor Principal
+- Autenticação via Supabase (e-mail/senha).
+- Rotas protegidas usando React Router + contexto de auth.
+- Sessão preservada sem recarregar a página (uso correto de `navigate`).
 
-## 📄 Licença
+### 🧭 Navegação
 
-Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes. 
+- Sidebar com acesso a Dashboard, Chips e Ativos.
+- Navegação 100% via React Router (sem `window.location.href`), evitando logout.
+
+### 👥 Autor
+
+- Junior Ferreira — Desenvolvedor Principal
+
+### 📄 Licença
+
+- MIT — veja `LICENSE`.
