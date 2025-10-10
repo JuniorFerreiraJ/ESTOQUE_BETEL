@@ -42,6 +42,12 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
   const [success, setSuccess] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
+  // Ações rápidas (apenas no modo edição)
+  const [showTransfer, setShowTransfer] = useState(false);
+  const [transferUser, setTransferUser] = useState('');
+  const [transferDepartment, setTransferDepartment] = useState('');
+  const [quickActionLoading, setQuickActionLoading] = useState(false);
+
   const assetTypes = ['notebook', 'celular', 'tablet', 'outros'];
   const statuses = ['ativo', 'inativo', 'manutencao', 'fora_uso'];
 
@@ -50,17 +56,20 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
     if (isOpen) {
       if (editAsset) {
         setFormData({
-          assetType: editAsset.asset_type || 'notebook',
-          brand: editAsset.brand || '',
-          model: editAsset.model || '',
-          serialNumber: editAsset.serial_number || '',
-          department: editAsset.department || '',
-          currentUser: editAsset.current_user_name || '',
+          assetType: editAsset.asset_type || editAsset.assetType || 'notebook',
+          brand: editAsset.brand ?? '',
+          model: editAsset.model ?? '',
+          serialNumber: editAsset.serial_number || editAsset.serialNumber || '',
+          department: editAsset.department ?? '',
+          currentUser: editAsset.current_user_name || editAsset.currentUser || '',
           status: editAsset.status || 'ativo',
-          purchaseDate: editAsset.delivery_date || '',
-          purchaseValue: editAsset.purchase_value?.toString() || '',
-          warrantyExpiry: editAsset.warranty_expiry || ''
+          purchaseDate: editAsset.delivery_date || editAsset.purchaseDate || '',
+          purchaseValue: (editAsset.purchase_value ?? editAsset.purchaseValue ?? '').toString(),
+          warrantyExpiry: editAsset.warranty_expiry || editAsset.warrantyExpiry || ''
         });
+        setShowTransfer(false);
+        setTransferUser('');
+        setTransferDepartment('');
       } else {
         setFormData({
           assetType: 'notebook',
@@ -74,6 +83,9 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
           purchaseValue: '',
           warrantyExpiry: ''
         });
+        setShowTransfer(false);
+        setTransferUser('');
+        setTransferDepartment('');
       }
       setError(null);
       setSuccess(false);
@@ -190,7 +202,7 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
 
       setSuccess(true);
       setTimeout(() => {
-        onSuccess(formData.department.trim()); // Passar o departamento criado
+        onSuccess();
         onClose();
       }, 1500);
 
@@ -215,6 +227,79 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
         ...prev,
         [name]: ''
       }));
+    }
+  };
+
+  // Inativar rapidamente (apenas edição)
+  const handleQuickInactivate = async () => {
+    if (!editAsset) return;
+    if (!confirm('Tem certeza que deseja inativar este ativo?')) return;
+    try {
+      setQuickActionLoading(true);
+      const { error } = await supabase
+        .from('assets')
+        .update({ status: 'inativo', updated_by: 'Sistema' })
+        .eq('id', editAsset.id);
+      if (error) throw error;
+
+      await supabase
+        .from('asset_history')
+        .insert({
+          asset_id: editAsset.id,
+          action: 'inactivated',
+          old_values: editAsset,
+          new_values: { ...editAsset, status: 'inativo' },
+          description: 'Ativo inativado',
+          created_by: 'Sistema'
+        });
+
+      onSuccess();
+      onClose();
+    } catch (err: any) {
+      setError(err.message || 'Erro ao inativar ativo');
+    } finally {
+      setQuickActionLoading(false);
+    }
+  };
+
+  // Transferir rapidamente (apenas edição)
+  const handleQuickTransfer = async () => {
+    if (!editAsset) return;
+    if (!transferUser.trim()) {
+      setError('Informe o novo usuário para transferir');
+      return;
+    }
+    try {
+      setQuickActionLoading(true);
+      const newDepartment = transferDepartment.trim() || editAsset.department;
+      const updatePayload = {
+        current_user_name: transferUser.trim(),
+        department: newDepartment,
+        updated_by: 'Sistema'
+      };
+      const { error } = await supabase
+        .from('assets')
+        .update(updatePayload)
+        .eq('id', editAsset.id);
+      if (error) throw error;
+
+      await supabase
+        .from('asset_history')
+        .insert({
+          asset_id: editAsset.id,
+          action: 'transferred',
+          old_values: editAsset,
+          new_values: { ...editAsset, ...updatePayload },
+          description: `Transferido de ${editAsset.current_user_name || 'N/I'} para ${transferUser.trim()} (${newDepartment})`,
+          created_by: 'Sistema'
+        });
+
+      onSuccess();
+      onClose();
+    } catch (err: any) {
+      setError(err.message || 'Erro ao transferir ativo');
+    } finally {
+      setQuickActionLoading(false);
     }
   };
 
@@ -564,7 +649,67 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
           </div>
 
           {/* Actions */}
-          <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+          <div className="flex flex-col gap-4 pt-6 border-t border-gray-200">
+            {editAsset && (
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-sm font-semibold text-gray-700">Ações rápidas:</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowTransfer(v => !v)}
+                    className="px-4 py-2 text-green-700 bg-green-100 rounded-lg hover:bg-green-200 transition-colors disabled:opacity-50"
+                    disabled={quickActionLoading}
+                  >
+                    {showTransfer ? 'Cancelar Transferência' : 'Transferir'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleQuickInactivate}
+                    className="px-4 py-2 text-red-700 bg-red-100 rounded-lg hover:bg-red-200 transition-colors disabled:opacity-50"
+                    disabled={quickActionLoading}
+                  >
+                    {quickActionLoading ? 'Processando...' : 'Inativar'}
+                  </button>
+                </div>
+
+                {showTransfer && (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Novo Usuário</label>
+                      <input
+                        type="text"
+                        value={transferUser}
+                        onChange={(e) => setTransferUser(e.target.value)}
+                        placeholder="Nome do novo usuário"
+                        className="w-full border border-gray-300 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Departamento (opcional)</label>
+                      <input
+                        type="text"
+                        value={transferDepartment}
+                        onChange={(e) => setTransferDepartment(e.target.value)}
+                        placeholder={`Ex: ${editAsset?.department || 'TI'}`}
+                        className="w-full border border-gray-300 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <button
+                        type="button"
+                        onClick={handleQuickTransfer}
+                        className="w-full md:w-auto px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 transition-colors disabled:opacity-50"
+                        disabled={quickActionLoading}
+                      >
+                        {quickActionLoading ? 'Transferindo...' : 'Confirmar Transferência'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex justify-end space-x-4">
             <button
               type="button"
               onClick={onClose}
@@ -590,6 +735,7 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
                     : 'Adicionar Ativo'
               }
             </button>
+            </div>
           </div>
         </form>
       </div>
