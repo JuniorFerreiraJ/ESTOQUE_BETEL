@@ -1,19 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
-  Laptop, 
-  Smartphone, 
+  Laptop,
+  Smartphone,
   Tablet,
-  Plus, 
-  Edit, 
-  Trash2, 
-  Search, 
+  Plus,
+  Edit,
+  Trash2,
+  Search,
   Filter,
   Users,
-  Building2,
   DollarSign,
-  Calendar,
   Shield,
-  AlertTriangle,
   TrendingUp,
   CheckCircle,
   XCircle,
@@ -39,93 +36,6 @@ interface Asset {
   warrantyExpiry: string;
   lastUpdate: string;
 }
-
-const mockAssets: Asset[] = [
-  {
-    id: '1',
-    assetType: 'notebook',
-    brand: 'Dell',
-    model: 'Inspiron 15 3000',
-    serialNumber: 'DL123456789',
-    department: 'TI',
-    currentUser: 'João Silva',
-    status: 'ativo',
-    purchaseDate: '2023-06-15',
-    purchaseValue: 2500.00,
-    warrantyExpiry: '2025-06-15',
-    lastUpdate: '2024-01-15'
-  },
-  {
-    id: '2',
-    assetType: 'celular',
-    brand: 'Samsung',
-    model: 'Galaxy A54',
-    serialNumber: 'SM987654321',
-    department: 'Comercial',
-    currentUser: 'Maria Santos',
-    status: 'ativo',
-    purchaseDate: '2023-08-20',
-    purchaseValue: 1200.00,
-    warrantyExpiry: '2024-08-20',
-    lastUpdate: '2024-01-10'
-  },
-  {
-    id: '3',
-    assetType: 'notebook',
-    brand: 'HP',
-    model: 'Pavilion 14',
-    serialNumber: 'HP456789123',
-    department: 'Administrativo',
-    currentUser: 'Pedro Costa',
-    status: 'manutencao',
-    purchaseDate: '2022-12-10',
-    purchaseValue: 2800.00,
-    warrantyExpiry: '2024-12-10',
-    lastUpdate: '2024-01-05'
-  },
-  {
-    id: '4',
-    assetType: 'tablet',
-    brand: 'iPad',
-    model: 'Air 5ª Geração',
-    serialNumber: 'IP789123456',
-    department: 'Operacional',
-    currentUser: 'Ana Oliveira',
-    status: 'ativo',
-    purchaseDate: '2023-09-05',
-    purchaseValue: 1800.00,
-    warrantyExpiry: '2024-09-05',
-    lastUpdate: '2024-01-12'
-  },
-  {
-    id: '5',
-    assetType: 'celular',
-    brand: 'iPhone',
-    model: '13 Pro',
-    serialNumber: 'IP123789456',
-    department: 'TI',
-    currentUser: 'Carlos Lima',
-    status: 'perdido',
-    purchaseDate: '2022-03-15',
-    purchaseValue: 3500.00,
-    warrantyExpiry: '2024-03-15',
-    lastUpdate: '2024-01-08'
-  },
-  {
-    id: '6',
-    assetType: 'notebook',
-    brand: 'Lenovo',
-    model: 'ThinkPad E15',
-    serialNumber: 'LN987123456',
-    department: 'Comercial',
-    currentUser: 'Lucia Ferreira',
-    status: 'inativo',
-    purchaseDate: '2021-11-20',
-    purchaseValue: 2200.00,
-    warrantyExpiry: '2023-11-20',
-    lastUpdate: '2024-01-03'
-  }
-];
 
 export default function Ativos() {
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -235,16 +145,10 @@ export default function Ativos() {
     }
   };
 
-  // Adicionar departamento à lista local (para aparecer no filtro imediatamente)
-  const addDepartmentToList = (newDepartment: string) => {
-    if (newDepartment && !departments.some(dept => dept.name === newDepartment)) {
-      const newDept = { id: Date.now().toString(), name: newDepartment };
-      setDepartments([...departments, newDept].sort((a, b) => a.name.localeCompare(b.name)));
-    }
-  };
+  // (não utilizado)
 
   // Função para sucesso do modal
-  const handleModalSuccess = (newDepartment?: string) => {
+  const handleModalSuccess = () => {
     fetchAssets();
     fetchDepartments(); // Recarregar departamentos do banco
     setSelectedAsset(null);
@@ -294,6 +198,7 @@ export default function Ativos() {
 
   // Check warranty expiry (within 30 days)
   const warrantyExpiringSoon = assets.filter(asset => {
+    if (!asset.warrantyExpiry) return false;
     const expiryDate = new Date(asset.warrantyExpiry);
     const today = new Date();
     const diffTime = expiryDate.getTime() - today.getTime();
@@ -388,7 +293,7 @@ export default function Ativos() {
                 <CheckCircle className="h-5 w-5 text-white" />
               </div>
               <div className="ml-3 min-w-0 flex-1">
-                <p className="text-xs font-medium text-green-600">Ativos Ativos</p>
+                <p className="text-xs font-medium text-green-600">Ativos</p>
                 <p className="text-2xl font-bold text-green-800">{activeAssets}</p>
               </div>
             </div>
@@ -598,12 +503,13 @@ export default function Ativos() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
               {filteredAssets.map((asset) => {
-                const warrantyExpiry = new Date(asset.warrantyExpiry);
+                const hasWarranty = !!asset.warrantyExpiry;
+                const warrantyExpiry = hasWarranty ? new Date(asset.warrantyExpiry) : null;
                 const today = new Date();
-                const diffTime = warrantyExpiry.getTime() - today.getTime();
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                const isWarrantyExpired = diffDays <= 0;
-                const isWarrantyExpiringSoon = diffDays <= 30 && diffDays > 0;
+                const diffTime = warrantyExpiry ? (warrantyExpiry.getTime() - today.getTime()) : 0;
+                const diffDays = warrantyExpiry ? Math.ceil(diffTime / (1000 * 60 * 60 * 24)) : 0;
+                const isWarrantyExpired = hasWarranty ? diffDays <= 0 : false;
+                const isWarrantyExpiringSoon = hasWarranty ? (diffDays <= 30 && diffDays > 0) : false;
 
                 return (
                   <tr key={asset.id} className="hover:bg-green-50 transition-colors duration-200">
@@ -641,13 +547,17 @@ export default function Ativos() {
                     </td>
                     <td className="px-2 py-3 text-center">
                       <div className="flex flex-col items-center">
-                        <span className={`text-xs font-medium ${
-                          isWarrantyExpired ? 'text-red-600' : 
-                          isWarrantyExpiringSoon ? 'text-yellow-600' : 
-                          'text-gray-600'
-                        }`}>
-                          {new Date(asset.warrantyExpiry).toLocaleDateString('pt-BR')}
-                        </span>
+                        {hasWarranty ? (
+                          <span className={`text-xs font-medium ${
+                            isWarrantyExpired ? 'text-red-600' : 
+                            isWarrantyExpiringSoon ? 'text-yellow-600' : 
+                            'text-gray-600'
+                          }`}>
+                            {warrantyExpiry && warrantyExpiry.toLocaleDateString('pt-BR')}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-500">Desconhecida</span>
+                        )}
                         {isWarrantyExpired && (
                           <span className="text-xs text-red-600 font-medium">Expirada</span>
                         )}

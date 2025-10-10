@@ -94,7 +94,7 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
     if (!formData.purchaseValue || parseFloat(formData.purchaseValue) <= 0) {
       errors.purchaseValue = 'Valor de compra deve ser maior que zero';
     }
-    if (!formData.warrantyExpiry) errors.warrantyExpiry = 'Vencimento da garantia é obrigatório';
+    // Garantia é opcional
 
     // Validar datas
     if (formData.purchaseDate && formData.warrantyExpiry) {
@@ -140,7 +140,7 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
         status: formData.status,
         delivery_date: formData.purchaseDate,
         purchase_value: parseFloat(formData.purchaseValue),
-        warranty_expiry: formData.warrantyExpiry,
+        warranty_expiry: formData.warrantyExpiry || null,
         created_by: 'Sistema', // TODO: Pegar do contexto de usuário
         updated_by: 'Sistema'
       };
@@ -556,7 +556,6 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
                     ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
                     : 'border-gray-300 focus:ring-green-500 focus:border-green-500'
                 }`}
-                required
               />
               {validationErrors.warrantyExpiry && (
                 <p className="text-red-600 text-sm mt-1">{validationErrors.warrantyExpiry}</p>
