@@ -15,7 +15,7 @@ import {
   AlertCircle,
   CheckCircle,
   XCircle,
-  MoreVertical,
+  
   Eye,
   RefreshCw
 } from 'lucide-react';
@@ -40,6 +40,9 @@ export default function Chips() {
   const [filterCompany, setFilterCompany] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [isCompanyOpen, setIsCompanyOpen] = useState(false);
+  const [isDeptOpen, setIsDeptOpen] = useState(false);
+  const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -104,6 +107,15 @@ export default function Chips() {
     }
   };
 
+  // Filtrar departamentos baseado na empresa selecionada
+  const getFilteredDepartments = () => {
+    if (!filterCompany) return departments;
+    return departments.filter(dept => {
+      // Verificar se existe pelo menos um chip com essa empresa e departamento
+      return chips.some(chip => chip.company === filterCompany && chip.department === dept);
+    });
+  };
+
   // Adicionar departamento à lista local (para aparecer no filtro imediatamente)
   const addDepartmentToList = (newDepartment: string) => {
     if (newDepartment && !departments.includes(newDepartment)) {
@@ -116,6 +128,13 @@ export default function Chips() {
     fetchChips();
     fetchDepartments();
   }, []);
+
+  // Limpar filtro de departamento quando empresa mudar
+  useEffect(() => {
+    if (filterDepartment && !getFilteredDepartments().includes(filterDepartment)) {
+      setFilterDepartment('');
+    }
+  }, [filterCompany, filterDepartment, departments, chips]);
 
   // Função para editar chip
   const handleEditChip = (chip: Chip) => {
@@ -181,8 +200,22 @@ export default function Chips() {
     }
   };
 
-  const totalCost = chips.reduce((sum, chip) => sum + chip.monthlyCost, 0);
-  const activeChips = chips.filter(chip => chip.status === 'ativo').length;
+  // Calcular estatísticas baseadas no filtro de empresa
+  const getFilteredChips = () => {
+    if (!filterCompany) return chips;
+    return chips.filter(chip => chip.company === filterCompany);
+  };
+
+  const filteredChipsForStats = getFilteredChips();
+  const totalCost = filteredChipsForStats.reduce((sum, chip) => sum + chip.monthlyCost, 0);
+  const activeChips = filteredChipsForStats.filter(chip => chip.status === 'ativo').length;
+  const totalChips = filteredChipsForStats.length;
+  
+  // Estatísticas por empresa
+  const claroChips = chips.filter(chip => chip.company === 'Claro');
+  const vivoChips = chips.filter(chip => chip.company === 'Vivo');
+  const claroCost = claroChips.reduce((sum, chip) => sum + chip.monthlyCost, 0);
+  const vivoCost = vivoChips.reduce((sum, chip) => sum + chip.monthlyCost, 0);
 
   // Loading state
   if (loading) {
@@ -251,64 +284,105 @@ export default function Chips() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-br from-blue-50 via-white to-blue-50 rounded-2xl p-4 shadow-lg border border-blue-100 hover:shadow-xl transition-all duration-300">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="bg-gradient-to-br from-blue-50 via-white to-blue-50 rounded-xl p-7 shadow-md border border-blue-100 hover:shadow-lg transition-all duration-300">
           <div className="flex items-center justify-between">
             <div className="flex items-center min-w-0 flex-1">
-              <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-2 rounded-xl shadow-md flex-shrink-0">
-                <Phone className="h-5 w-5 text-white" />
+              <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-1.5 rounded-lg shadow-sm flex-shrink-0">
+                <Phone className="h-4 w-4 text-white" />
               </div>
-              <div className="ml-3 min-w-0 flex-1">
-                <p className="text-xs font-medium text-blue-600">Total de Chips</p>
-                <p className="text-2xl font-bold text-blue-800">{chips.length}</p>
+              <div className="ml-2 min-w-0 flex-1">
+                <p className="text-xs font-medium text-blue-600">
+                  {filterCompany ? 'Chips' : 'Total de Chips'}
+                </p>
+                <p className="text-lg font-bold text-blue-800">{totalChips}</p>
+                {filterCompany && (
+                  <p className="text-xs text-blue-500">
+                    {filterCompany === 'Claro' ? `${claroChips.length} total` : `${vivoChips.length} total`}
+                  </p>
+                )}
               </div>
             </div>
-            <TrendingUp className="h-6 w-6 text-blue-300 flex-shrink-0" />
+            <TrendingUp className="h-4 w-4 text-blue-300 flex-shrink-0" />
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-green-50 via-white to-green-50 rounded-2xl p-4 shadow-lg border border-green-100 hover:shadow-xl transition-all duration-300">
+        <div className="bg-gradient-to-br from-green-50 via-white to-green-50 rounded-xl p-5 shadow-md border border-green-100 hover:shadow-lg transition-all duration-300">
           <div className="flex items-center justify-between">
             <div className="flex items-center min-w-0 flex-1">
-              <div className="bg-gradient-to-br from-green-500 to-green-600 p-2 rounded-xl shadow-md flex-shrink-0">
-                <CheckCircle className="h-5 w-5 text-white" />
+              <div className="bg-gradient-to-br from-green-500 to-green-600 p-1.5 rounded-lg shadow-sm flex-shrink-0">
+                <CheckCircle className="h-4 w-4 text-white" />
               </div>
-              <div className="ml-3 min-w-0 flex-1">
-                <p className="text-xs font-medium text-green-600">Chips Ativos</p>
-                <p className="text-2xl font-bold text-green-800">{activeChips}</p>
+              <div className="ml-2 min-w-0 flex-1">
+                <p className="text-xs font-medium text-green-600">
+                  {filterCompany ? 'Ativos' : 'Chips Ativos'}
+                </p>
+                <p className="text-lg font-bold text-green-800">{activeChips}</p>
+                {filterCompany && (
+                  <p className="text-xs text-green-500">
+                    {filterCompany === 'Claro' 
+                      ? `${claroChips.filter(c => c.status === 'ativo').length} ativos` 
+                      : `${vivoChips.filter(c => c.status === 'ativo').length} ativos`
+                    }
+                  </p>
+                )}
               </div>
             </div>
-            <TrendingUp className="h-6 w-6 text-green-300 flex-shrink-0" />
+            <TrendingUp className="h-4 w-4 text-green-300 flex-shrink-0" />
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-purple-50 via-white to-purple-50 rounded-2xl p-4 shadow-lg border border-purple-100 hover:shadow-xl transition-all duration-300">
+        <div className="bg-gradient-to-br from-green-50 via-white to-green-50 rounded-xl p-5 shadow-md border border-green-100 hover:shadow-lg transition-all duration-300">
           <div className="flex items-center justify-between">
             <div className="flex items-center min-w-0 flex-1">
-              <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-2 rounded-xl shadow-md flex-shrink-0">
-                <Building2 className="h-5 w-5 text-white" />
+              <div className="bg-gradient-to-br from-green-500 to-green-600 p-1.5 rounded-lg shadow-sm flex-shrink-0">
+                <Building2 className="h-4 w-4 text-white" />
               </div>
-              <div className="ml-3 min-w-0 flex-1">
-                <p className="text-xs font-medium text-purple-600">Empresas</p>
-                <p className="text-2xl font-bold text-purple-800">{companies.length}</p>
+              <div className="ml-2 min-w-0 flex-1">
+                <p className="text-xs font-medium text-green-600">
+                  {filterCompany ? 'Departamentos' : 'Empresas'}
+                </p>
+                <p className="text-lg font-bold text-green-800">
+                  {filterCompany 
+                    ? Array.from(new Set(filteredChipsForStats.map(c => c.department))).length
+                    : companies.length
+                  }
+                </p>
+                {filterCompany && (
+                  <p className="text-xs text-green-500 truncate">
+                    {Array.from(new Set(filteredChipsForStats.map(c => c.department))).join(', ') || 'Nenhum'}
+                  </p>
+                )}
               </div>
             </div>
-            <TrendingUp className="h-6 w-6 text-purple-300 flex-shrink-0" />
+            <TrendingUp className="h-4 w-4 text-green-300 flex-shrink-0" />
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-yellow-50 via-white to-yellow-50 rounded-2xl p-4 shadow-lg border border-yellow-100 hover:shadow-xl transition-all duration-300">
+        <div className="bg-gradient-to-br from-yellow-50 via-white to-yellow-50 rounded-xl p-5 shadow-md border border-yellow-100 hover:shadow-lg transition-all duration-300">
           <div className="flex items-center justify-between">
             <div className="flex items-center min-w-0 flex-1">
-              <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 p-2 rounded-xl shadow-md flex-shrink-0">
-                <DollarSign className="h-5 w-5 text-white" />
+              <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 p-1.5 rounded-lg shadow-sm flex-shrink-0">
+                <DollarSign className="h-4 w-4 text-white" />
               </div>
-              <div className="ml-3 min-w-0 flex-1">
-                <p className="text-xs font-medium text-yellow-600">Custo Mensal</p>
-                <p className="text-2xl font-bold text-yellow-800 truncate">R$ {totalCost >= 10000 ? `${(totalCost / 1000).toFixed(0)}k` : totalCost.toFixed(2)}</p>
+              <div className="ml-2 min-w-0 flex-1">
+                <p className="text-xs font-medium text-yellow-600">
+                  {filterCompany ? 'Custo' : 'Custo Mensal'}
+                </p>
+                <p className="text-lg font-bold text-yellow-800 truncate">
+                  R$ {totalCost >= 10000 ? `${(totalCost / 1000).toFixed(0)}k` : totalCost.toFixed(2)}
+                </p>
+                {filterCompany && (
+                  <p className="text-xs text-yellow-500">
+                    {filterCompany === 'Claro' 
+                      ? `R$ ${claroCost >= 10000 ? `${(claroCost / 1000).toFixed(0)}k` : claroCost.toFixed(2)} total`
+                      : `R$ ${vivoCost >= 10000 ? `${(vivoCost / 1000).toFixed(0)}k` : vivoCost.toFixed(2)} total`
+                    }
+                  </p>
+                )}
               </div>
             </div>
-            <TrendingUp className="h-6 w-6 text-yellow-300 flex-shrink-0" />
+            <TrendingUp className="h-4 w-4 text-yellow-300 flex-shrink-0" />
           </div>
         </div>
       </div>
@@ -316,8 +390,8 @@ export default function Chips() {
       {/* Filters */}
       <div className="bg-gradient-to-r from-gray-50 via-white to-gray-50 rounded-2xl shadow-lg p-8 border border-gray-100">
         <div className="flex items-center gap-3 mb-6">
-          <div className="bg-gradient-to-br from-gray-500 to-gray-600 p-2 rounded-lg">
-            <Filter className="h-5 w-5 text-white" />
+          <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-3 rounded-xl shadow-md">
+            <Filter className="h-6 w-6 text-white" />
           </div>
           <h2 className="text-xl font-semibold text-gray-800">Filtros e Busca</h2>
         </div>
@@ -338,51 +412,221 @@ export default function Chips() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-3">Empresa</label>
-            <select
-              value={filterCompany}
-              onChange={(e) => setFilterCompany(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white shadow-sm hover:shadow-md"
+            <div
+              className="relative"
+              onBlur={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsCompanyOpen(false);
+              }}
             >
-              <option value="">Todas as empresas</option>
-              {companies.map(company => (
-                <option key={company} value={company}>{company}</option>
-              ))}
-            </select>
+              <button
+                type="button"
+                onClick={() => setIsCompanyOpen(!isCompanyOpen)}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 flex items-center justify-between bg-white shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+              >
+                <span className={`flex items-center gap-2 ${filterCompany ? 'text-gray-900' : 'text-gray-500'}`}>
+                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow ring-1 ring-purple-400/30">
+                    <Building2 className="w-4 h-4" />
+                  </span>
+                  {filterCompany || 'Todas as empresas'}
+                </span>
+                <svg
+                  className={`w-5 h-5 text-gray-400 transform transition-transform ${isCompanyOpen ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {isCompanyOpen && (
+                <div className="absolute z-20 mt-2 w-full bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
+                  <div className="max-h-64 overflow-y-auto divide-y divide-gray-100">
+                    <button
+                      type="button"
+                      className={`w-full text-left px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition ${filterCompany === '' ? 'bg-green-50' : ''}`}
+                      onClick={() => { setFilterCompany(''); setIsCompanyOpen(false); }}
+                    >
+                      <span className="flex items-center gap-2 text-gray-700">
+                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow ring-1 ring-purple-400/30">
+                          <Building2 className="w-4 h-4" />
+                        </span>
+                        Todas as empresas
+                      </span>
+                      {filterCompany === '' && (
+                        <CheckCircle className="w-4 h-4 text-green-600" />
+                      )}
+                    </button>
+
+                    {companies.map((company) => (
+                      <button
+                        key={company}
+                        type="button"
+                        className={`w-full text-left px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition ${filterCompany === company ? 'bg-green-50' : ''}`}
+                        title={company}
+                        onClick={() => { setFilterCompany(company); setIsCompanyOpen(false); }}
+                      >
+                        <span className="flex items-center gap-2 text-gray-700">
+                          <span className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow ring-1 ring-purple-400/30">
+                            <Building2 className="w-4 h-4" />
+                          </span>
+                          <span className="truncate">{company}</span>
+                        </span>
+                        {filterCompany === company && (
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-3">Departamento</label>
-            <div className="relative">
-              <select
-                value={filterDepartment}
-                onChange={(e) => setFilterDepartment(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white shadow-sm hover:shadow-md appearance-none cursor-pointer"
+            <div
+              className="relative"
+              onBlur={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDeptOpen(false);
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setIsDeptOpen(!isDeptOpen)}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 flex items-center justify-between bg-white shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
               >
-                <option value="">Todos os departamentos</option>
-                {departments.map(dept => (
-                  <option key={dept} value={dept}>{dept}</option>
-                ))}
-              </select>
-              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <span className={`flex items-center gap-2 ${filterDepartment ? 'text-gray-900' : 'text-gray-500'}`}>
+                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow ring-1 ring-orange-400/30">
+                    <Users className="w-4 h-4" />
+                  </span>
+                  {filterDepartment || 'Todos os departamentos'}
+                </span>
+                <svg
+                  className={`w-5 h-5 text-gray-400 transform transition-transform ${isDeptOpen ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
-              </div>
+              </button>
+
+              {isDeptOpen && (
+                <div className="absolute z-20 mt-2 w-full bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
+                  <div className="max-h-64 overflow-y-auto divide-y divide-gray-100">
+                    <button
+                      type="button"
+                      className={`w-full text-left px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition ${filterDepartment === '' ? 'bg-green-50' : ''}`}
+                      onClick={() => { setFilterDepartment(''); setIsDeptOpen(false); }}
+                    >
+                      <span className="flex items-center gap-2 text-gray-700">
+                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow ring-1 ring-orange-400/30">
+                          <Users className="w-4 h-4" />
+                        </span>
+                        Todos os departamentos
+                      </span>
+                      {filterDepartment === '' && (
+                        <CheckCircle className="w-4 h-4 text-green-600" />
+                      )}
+                    </button>
+
+                    {getFilteredDepartments().map((dept) => (
+                      <button
+                        key={dept}
+                        type="button"
+                        className={`w-full text-left px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition ${filterDepartment === dept ? 'bg-green-50' : ''}`}
+                        title={dept}
+                        onClick={() => { setFilterDepartment(dept); setIsDeptOpen(false); }}
+                      >
+                        <span className="flex items-center gap-2 text-gray-700">
+                          <span className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow ring-1 ring-orange-400/30">
+                            <Users className="w-4 h-4" />
+                          </span>
+                          <span className="truncate">{dept}</span>
+                        </span>
+                        {filterDepartment === dept && (
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-3">Status</label>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white shadow-sm hover:shadow-md"
+            <div
+              className="relative"
+              onBlur={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsStatusOpen(false);
+              }}
             >
-              <option value="">Todos os status</option>
-              {statuses.map(status => (
-                <option key={status} value={status}>{status}</option>
-              ))}
-            </select>
+              <button
+                type="button"
+                onClick={() => setIsStatusOpen(!isStatusOpen)}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 flex items-center justify-between bg-white shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+              >
+                <span className={`flex items-center gap-2 ${filterStatus ? 'text-gray-900' : 'text-gray-500'}`}>
+                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow ring-1 ring-emerald-400/30">
+                    <CheckCircle className="w-4 h-4" />
+                  </span>
+                  {filterStatus || 'Todos os status'}
+                </span>
+                <svg
+                  className={`w-5 h-5 text-gray-400 transform transition-transform ${isStatusOpen ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {isStatusOpen && (
+                <div className="absolute z-20 mt-2 w-full bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
+                  <div className="max-h-64 overflow-y-auto divide-y divide-gray-100">
+                    <button
+                      type="button"
+                      className={`w-full text-left px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition ${filterStatus === '' ? 'bg-green-50' : ''}`}
+                      onClick={() => { setFilterStatus(''); setIsStatusOpen(false); }}
+                    >
+                      <span className="flex items-center gap-2 text-gray-700">
+                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow ring-1 ring-emerald-400/30">
+                          <CheckCircle className="w-4 h-4" />
+                        </span>
+                        Todos os status
+                      </span>
+                      {filterStatus === '' && (
+                        <CheckCircle className="w-4 h-4 text-green-600" />
+                      )}
+                    </button>
+
+                    {statuses.map((status) => (
+                      <button
+                        key={status}
+                        type="button"
+                        className={`w-full text-left px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition ${filterStatus === status ? 'bg-green-50' : ''}`}
+                        title={status}
+                        onClick={() => { setFilterStatus(status); setIsStatusOpen(false); }}
+                      >
+                        <span className="flex items-center gap-2 text-gray-700">
+                          <span className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow ring-1 ring-emerald-400/30">
+                            <CheckCircle className="w-4 h-4" />
+                          </span>
+                          <span className="truncate capitalize">{status}</span>
+                        </span>
+                        {filterStatus === status && (
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -392,12 +636,12 @@ export default function Chips() {
         <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-8 py-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="bg-gradient-to-br from-gray-500 to-gray-600 p-2 rounded-lg">
-                <Phone className="h-5 w-5 text-white" />
+              <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-3 rounded-xl shadow-md">
+                <Phone className="h-6 w-6 text-white" />
               </div>
               <h2 className="text-xl font-semibold text-gray-800">Lista de Chips</h2>
             </div>
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-gray-500 bg-white px-3 py-1 rounded-full border border-gray-200">
               {filteredChips.length} de {chips.length} chips
             </div>
           </div>
