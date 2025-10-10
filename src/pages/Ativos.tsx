@@ -43,13 +43,16 @@ export default function Ativos() {
   const [filterType, setFilterType] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [isTypeOpen, setIsTypeOpen] = useState(false);
+  const [isDeptOpen, setIsDeptOpen] = useState(false);
+  const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
 
   const assetTypes = ['notebook', 'celular', 'tablet', 'outros'];
-  const [departments, setDepartments] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<string[]>([]);
   const statuses = ['ativo', 'inativo', 'manutencao', 'fora_uso'];
 
   // Buscar ativos do banco de dados
@@ -103,8 +106,7 @@ export default function Ativos() {
       
       if (data) {
         const uniqueDepartments = Array.from(new Set(data.map(item => item.department)));
-        const formattedDepartments = uniqueDepartments.map(dept => ({ id: dept, name: dept }));
-        setDepartments(formattedDepartments);
+        setDepartments(uniqueDepartments);
       }
     } catch (error: any) {
       console.error('Erro ao buscar departamentos:', error);
@@ -191,10 +193,31 @@ export default function Ativos() {
     }
   };
 
-  const totalValue = assets.reduce((sum, asset) => sum + asset.purchaseValue, 0);
-  const activeAssets = assets.filter(asset => asset.status === 'ativo').length;
-  const maintenanceAssets = assets.filter(asset => asset.status === 'manutencao').length;
-  const outOfUseAssets = assets.filter(asset => asset.status === 'fora_uso').length;
+  // Calcular estatísticas baseadas nos filtros
+  const getFilteredAssets = () => {
+    let filtered = assets;
+    
+    if (filterType) {
+      filtered = filtered.filter(asset => asset.assetType === filterType);
+    }
+    
+    if (filterDepartment) {
+      filtered = filtered.filter(asset => asset.department === filterDepartment);
+    }
+    
+    if (filterStatus) {
+      filtered = filtered.filter(asset => asset.status === filterStatus);
+    }
+    
+    return filtered;
+  };
+
+  const filteredAssetsForStats = getFilteredAssets();
+  const totalValue = filteredAssetsForStats.reduce((sum, asset) => sum + asset.purchaseValue, 0);
+  const activeAssets = filteredAssetsForStats.filter(asset => asset.status === 'ativo').length;
+  const maintenanceAssets = filteredAssetsForStats.filter(asset => asset.status === 'manutencao').length;
+  const outOfUseAssets = filteredAssetsForStats.filter(asset => asset.status === 'fora_uso').length;
+  const totalAssets = filteredAssetsForStats.length;
 
   // Check warranty expiry (within 30 days)
   const warrantyExpiringSoon = assets.filter(asset => {
@@ -270,79 +293,114 @@ export default function Ativos() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <div className="bg-gradient-to-br from-blue-50 via-white to-blue-50 rounded-2xl p-4 shadow-lg border border-blue-100 hover:shadow-xl transition-all duration-300">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="bg-gradient-to-br from-blue-50 via-white to-blue-50 rounded-xl p-5 shadow-md border border-blue-100 hover:shadow-lg transition-all duration-300">
           <div className="flex items-center justify-between">
             <div className="flex items-center min-w-0 flex-1">
-              <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-2 rounded-xl shadow-md flex-shrink-0">
-                <Laptop className="h-5 w-5 text-white" />
+              <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-1.5 rounded-lg shadow-sm flex-shrink-0">
+                <Laptop className="h-4 w-4 text-white" />
               </div>
-              <div className="ml-3 min-w-0 flex-1">
-                <p className="text-xs font-medium text-blue-600">Total de Ativos</p>
-                <p className="text-2xl font-bold text-blue-800">{assets.length}</p>
+              <div className="ml-2 min-w-0 flex-1">
+                <p className="text-xs font-medium text-blue-600">
+                  {filterType ? 'Ativos' : 'Total de Ativos'}
+                </p>
+                <p className="text-lg font-bold text-blue-800">{totalAssets}</p>
+                {filterType && (
+                  <p className="text-xs text-blue-500">
+                    {assets.filter(a => a.assetType === filterType).length} total
+                  </p>
+                )}
               </div>
             </div>
-            <TrendingUp className="h-6 w-6 text-blue-300 flex-shrink-0" />
+            <TrendingUp className="h-4 w-4 text-blue-300 flex-shrink-0" />
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-green-50 via-white to-green-50 rounded-2xl p-4 shadow-lg border border-green-100 hover:shadow-xl transition-all duration-300">
+        <div className="bg-gradient-to-br from-green-50 via-white to-green-50 rounded-xl p-5 shadow-md border border-green-100 hover:shadow-lg transition-all duration-300">
           <div className="flex items-center justify-between">
             <div className="flex items-center min-w-0 flex-1">
-              <div className="bg-gradient-to-br from-green-500 to-green-600 p-2 rounded-xl shadow-md flex-shrink-0">
-                <CheckCircle className="h-5 w-5 text-white" />
+              <div className="bg-gradient-to-br from-green-500 to-green-600 p-1.5 rounded-lg shadow-sm flex-shrink-0">
+                <CheckCircle className="h-4 w-4 text-white" />
               </div>
-              <div className="ml-3 min-w-0 flex-1">
-                <p className="text-xs font-medium text-green-600">Ativos</p>
-                <p className="text-2xl font-bold text-green-800">{activeAssets}</p>
+              <div className="ml-2 min-w-0 flex-1">
+                <p className="text-xs font-medium text-green-600">
+                  {filterStatus ? 'Ativos' : 'Ativos Ativos'}
+                </p>
+                <p className="text-lg font-bold text-green-800">{activeAssets}</p>
+                {filterStatus && (
+                  <p className="text-xs text-green-500">
+                    {assets.filter(a => a.status === 'ativo').length} total
+                  </p>
+                )}
               </div>
             </div>
-            <TrendingUp className="h-6 w-6 text-green-300 flex-shrink-0" />
+            <TrendingUp className="h-4 w-4 text-green-300 flex-shrink-0" />
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-yellow-50 via-white to-yellow-50 rounded-2xl p-4 shadow-lg border border-yellow-100 hover:shadow-xl transition-all duration-300">
+        <div className="bg-gradient-to-br from-yellow-50 via-white to-yellow-50 rounded-xl p-5 shadow-md border border-yellow-100 hover:shadow-lg transition-all duration-300">
           <div className="flex items-center justify-between">
             <div className="flex items-center min-w-0 flex-1">
-              <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 p-2 rounded-xl shadow-md flex-shrink-0">
-                <Clock className="h-5 w-5 text-white" />
+              <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 p-1.5 rounded-lg shadow-sm flex-shrink-0">
+                <Clock className="h-4 w-4 text-white" />
               </div>
-              <div className="ml-3 min-w-0 flex-1">
-                <p className="text-xs font-medium text-yellow-600">Em Manutenção</p>
-                <p className="text-2xl font-bold text-yellow-800">{maintenanceAssets}</p>
+              <div className="ml-2 min-w-0 flex-1">
+                <p className="text-xs font-medium text-yellow-600">
+                  {filterStatus ? 'Manutenção' : 'Em Manutenção'}
+                </p>
+                <p className="text-lg font-bold text-yellow-800">{maintenanceAssets}</p>
+                {filterStatus && (
+                  <p className="text-xs text-yellow-500">
+                    {assets.filter(a => a.status === 'manutencao').length} total
+                  </p>
+                )}
               </div>
             </div>
-            <TrendingUp className="h-6 w-6 text-yellow-300 flex-shrink-0" />
+            <TrendingUp className="h-4 w-4 text-yellow-300 flex-shrink-0" />
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-red-50 via-white to-red-50 rounded-2xl p-4 shadow-lg border border-red-100 hover:shadow-xl transition-all duration-300">
+        <div className="bg-gradient-to-br from-red-50 via-white to-red-50 rounded-xl p-5 shadow-md border border-red-100 hover:shadow-lg transition-all duration-300">
           <div className="flex items-center justify-between">
             <div className="flex items-center min-w-0 flex-1">
-              <div className="bg-gradient-to-br from-red-500 to-red-600 p-2 rounded-xl shadow-md flex-shrink-0">
-                <XCircle className="h-5 w-5 text-white" />
+              <div className="bg-gradient-to-br from-red-500 to-red-600 p-1.5 rounded-lg shadow-sm flex-shrink-0">
+                <XCircle className="h-4 w-4 text-white" />
               </div>
-              <div className="ml-3 min-w-0 flex-1">
-                <p className="text-xs font-medium text-red-600">Fora de Uso</p>
-                <p className="text-2xl font-bold text-red-800">{outOfUseAssets}</p>
+              <div className="ml-2 min-w-0 flex-1">
+                <p className="text-xs font-medium text-red-600">
+                  {filterStatus ? 'Fora de Uso' : 'Fora de Uso'}
+                </p>
+                <p className="text-lg font-bold text-red-800">{outOfUseAssets}</p>
+                {filterStatus && (
+                  <p className="text-xs text-red-500">
+                    {assets.filter(a => a.status === 'fora_uso').length} total
+                  </p>
+                )}
               </div>
             </div>
-            <TrendingUp className="h-6 w-6 text-red-300 flex-shrink-0" />
+            <TrendingUp className="h-4 w-4 text-red-300 flex-shrink-0" />
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-purple-50 via-white to-purple-50 rounded-2xl p-4 shadow-lg border border-purple-100 hover:shadow-xl transition-all duration-300">
+        <div className="bg-gradient-to-br from-purple-50 via-white to-purple-50 rounded-xl p-5 shadow-md border border-purple-100 hover:shadow-lg transition-all duration-300">
           <div className="flex items-center justify-between">
             <div className="flex items-center min-w-0 flex-1">
-              <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-2 rounded-xl shadow-md flex-shrink-0">
-                <DollarSign className="h-5 w-5 text-white" />
+              <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-1.5 rounded-lg shadow-sm flex-shrink-0">
+                <DollarSign className="h-4 w-4 text-white" />
               </div>
-              <div className="ml-3 min-w-0 flex-1">
-                <p className="text-xs font-medium text-purple-600">Valor Total</p>
-                <p className="text-2xl font-bold text-purple-800 truncate">R$ {totalValue >= 10000 ? `${(totalValue / 1000).toFixed(0)}k` : totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+              <div className="ml-2 min-w-0 flex-1">
+                <p className="text-xs font-medium text-purple-600">
+                  {filterType || filterDepartment || filterStatus ? 'Valor' : 'Valor Total'}
+                </p>
+                <p className="text-lg font-bold text-purple-800 truncate">R$ {totalValue >= 10000 ? `${(totalValue / 1000).toFixed(0)}k` : totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                {(filterType || filterDepartment || filterStatus) && (
+                  <p className="text-xs text-purple-500">
+                    R$ {assets.reduce((sum, a) => sum + a.purchaseValue, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} total
+                  </p>
+                )}
               </div>
             </div>
-            <TrendingUp className="h-6 w-6 text-purple-300 flex-shrink-0" />
+            <TrendingUp className="h-4 w-4 text-purple-300 flex-shrink-0" />
           </div>
         </div>
       </div>
@@ -367,8 +425,8 @@ export default function Ativos() {
       {/* Filters */}
       <div className="bg-gradient-to-r from-gray-50 via-white to-gray-50 rounded-2xl shadow-lg p-8 border border-gray-100">
         <div className="flex items-center gap-3 mb-6">
-          <div className="bg-gradient-to-br from-gray-500 to-gray-600 p-2 rounded-lg">
-            <Filter className="h-5 w-5 text-white" />
+          <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-3 rounded-xl shadow-md">
+            <Filter className="h-6 w-6 text-white" />
           </div>
           <h2 className="text-xl font-semibold text-gray-800">Filtros e Busca</h2>
         </div>
@@ -389,74 +447,243 @@ export default function Ativos() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-3">Tipo</label>
-            <div className="relative">
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 bg-white shadow-sm hover:shadow-md appearance-none cursor-pointer"
+            <div
+              className="relative"
+              onBlur={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsTypeOpen(false);
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setIsTypeOpen(!isTypeOpen)}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 flex items-center justify-between bg-white shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
               >
-                <option value="">Todos os tipos</option>
-                {assetTypes.map(type => (
-                  <option key={type} value={type} className="capitalize">
-                    {type === 'notebook' ? 'Notebook' : 
-                     type === 'celular' ? 'Celular' : 
-                     type === 'tablet' ? 'Tablet' : 
-                     type === 'outros' ? 'Outros' : type}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <span className={`flex items-center gap-2 ${filterType ? 'text-gray-900' : 'text-gray-500'}`}>
+                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow ring-1 ring-blue-400/30">
+                    <Laptop className="w-4 h-4" />
+                  </span>
+                  {filterType ? (
+                    filterType === 'notebook' ? 'Notebook' : 
+                    filterType === 'celular' ? 'Celular' : 
+                    filterType === 'tablet' ? 'Tablet' : 
+                    filterType === 'outros' ? 'Outros' : filterType
+                  ) : 'Todos os tipos'}
+                </span>
+                <svg
+                  className={`w-5 h-5 text-gray-400 transform transition-transform ${isTypeOpen ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
-              </div>
+              </button>
+
+              {isTypeOpen && (
+                <div className="absolute z-20 mt-2 w-full bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
+                  <div className="max-h-64 overflow-y-auto divide-y divide-gray-100">
+                    <button
+                      type="button"
+                      className={`w-full text-left px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition ${filterType === '' ? 'bg-green-50' : ''}`}
+                      onClick={() => { setFilterType(''); setIsTypeOpen(false); }}
+                    >
+                      <span className="flex items-center gap-2 text-gray-700">
+                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow ring-1 ring-blue-400/30">
+                          <Laptop className="w-4 h-4" />
+                        </span>
+                        Todos os tipos
+                      </span>
+                      {filterType === '' && (
+                        <CheckCircle className="w-4 h-4 text-green-600" />
+                      )}
+                    </button>
+
+                    {assetTypes.map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        className={`w-full text-left px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition ${filterType === type ? 'bg-green-50' : ''}`}
+                        title={type}
+                        onClick={() => { setFilterType(type); setIsTypeOpen(false); }}
+                      >
+                        <span className="flex items-center gap-2 text-gray-700">
+                          <span className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow ring-1 ring-blue-400/30">
+                            {type === 'notebook' && <Laptop className="w-4 h-4" />}
+                            {type === 'celular' && <Smartphone className="w-4 h-4" />}
+                            {type === 'tablet' && <Tablet className="w-4 h-4" />}
+                            {type === 'outros' && <Laptop className="w-4 h-4" />}
+                          </span>
+                          <span className="truncate capitalize">
+                            {type === 'notebook' ? 'Notebook' : 
+                             type === 'celular' ? 'Celular' : 
+                             type === 'tablet' ? 'Tablet' : 
+                             type === 'outros' ? 'Outros' : type}
+                          </span>
+                        </span>
+                        {filterType === type && (
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-3">Departamento</label>
-            <div className="relative">
-              <select
-                value={filterDepartment}
-                onChange={(e) => setFilterDepartment(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 bg-white shadow-sm hover:shadow-md appearance-none cursor-pointer"
+            <div
+              className="relative"
+              onBlur={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDeptOpen(false);
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setIsDeptOpen(!isDeptOpen)}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 flex items-center justify-between bg-white shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
               >
-                <option value="">Todos os departamentos</option>
-                {departments.map(dept => (
-                  <option key={dept.id} value={dept.name}>{dept.name}</option>
-                ))}
-              </select>
-              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <span className={`flex items-center gap-2 ${filterDepartment ? 'text-gray-900' : 'text-gray-500'}`}>
+                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow ring-1 ring-orange-400/30">
+                    <Users className="w-4 h-4" />
+                  </span>
+                  {filterDepartment || 'Todos os departamentos'}
+                </span>
+                <svg
+                  className={`w-5 h-5 text-gray-400 transform transition-transform ${isDeptOpen ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
-              </div>
+              </button>
+
+              {isDeptOpen && (
+                <div className="absolute z-20 mt-2 w-full bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
+                  <div className="max-h-64 overflow-y-auto divide-y divide-gray-100">
+                    <button
+                      type="button"
+                      className={`w-full text-left px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition ${filterDepartment === '' ? 'bg-green-50' : ''}`}
+                      onClick={() => { setFilterDepartment(''); setIsDeptOpen(false); }}
+                    >
+                      <span className="flex items-center gap-2 text-gray-700">
+                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow ring-1 ring-orange-400/30">
+                          <Users className="w-4 h-4" />
+                        </span>
+                        Todos os departamentos
+                      </span>
+                      {filterDepartment === '' && (
+                        <CheckCircle className="w-4 h-4 text-green-600" />
+                      )}
+                    </button>
+
+                    {departments.map((dept) => (
+                      <button
+                        key={dept}
+                        type="button"
+                        className={`w-full text-left px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition ${filterDepartment === dept ? 'bg-green-50' : ''}`}
+                        title={dept}
+                        onClick={() => { setFilterDepartment(dept); setIsDeptOpen(false); }}
+                      >
+                        <span className="flex items-center gap-2 text-gray-700">
+                          <span className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow ring-1 ring-orange-400/30">
+                            <Users className="w-4 h-4" />
+                          </span>
+                          <span className="truncate">{dept}</span>
+                        </span>
+                        {filterDepartment === dept && (
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-3">Status</label>
-            <div className="relative">
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 bg-white shadow-sm hover:shadow-md appearance-none cursor-pointer"
+            <div
+              className="relative"
+              onBlur={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsStatusOpen(false);
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setIsStatusOpen(!isStatusOpen)}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 flex items-center justify-between bg-white shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
               >
-                <option value="">Todos os status</option>
-                {statuses.map(status => (
-                  <option key={status} value={status} className="capitalize">
-                    {status === 'ativo' ? 'Ativo' : 
-                     status === 'inativo' ? 'Inativo' : 
-                     status === 'manutencao' ? 'Em Manutenção' : 
-                     status === 'fora_uso' ? 'Fora de Uso' : status}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <span className={`flex items-center gap-2 ${filterStatus ? 'text-gray-900' : 'text-gray-500'}`}>
+                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow ring-1 ring-emerald-400/30">
+                    <CheckCircle className="w-4 h-4" />
+                  </span>
+                  {filterStatus ? (
+                    filterStatus === 'ativo' ? 'Ativo' : 
+                    filterStatus === 'inativo' ? 'Inativo' : 
+                    filterStatus === 'manutencao' ? 'Em Manutenção' : 
+                    filterStatus === 'fora_uso' ? 'Fora de Uso' : filterStatus
+                  ) : 'Todos os status'}
+                </span>
+                <svg
+                  className={`w-5 h-5 text-gray-400 transform transition-transform ${isStatusOpen ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
-              </div>
+              </button>
+
+              {isStatusOpen && (
+                <div className="absolute z-20 mt-2 w-full bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
+                  <div className="max-h-64 overflow-y-auto divide-y divide-gray-100">
+                    <button
+                      type="button"
+                      className={`w-full text-left px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition ${filterStatus === '' ? 'bg-green-50' : ''}`}
+                      onClick={() => { setFilterStatus(''); setIsStatusOpen(false); }}
+                    >
+                      <span className="flex items-center gap-2 text-gray-700">
+                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow ring-1 ring-emerald-400/30">
+                          <CheckCircle className="w-4 h-4" />
+                        </span>
+                        Todos os status
+                      </span>
+                      {filterStatus === '' && (
+                        <CheckCircle className="w-4 h-4 text-green-600" />
+                      )}
+                    </button>
+
+                    {statuses.map((status) => (
+                      <button
+                        key={status}
+                        type="button"
+                        className={`w-full text-left px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition ${filterStatus === status ? 'bg-green-50' : ''}`}
+                        title={status}
+                        onClick={() => { setFilterStatus(status); setIsStatusOpen(false); }}
+                      >
+                        <span className="flex items-center gap-2 text-gray-700">
+                          <span className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow ring-1 ring-emerald-400/30">
+                            <CheckCircle className="w-4 h-4" />
+                          </span>
+                          <span className="truncate capitalize">
+                            {status === 'ativo' ? 'Ativo' : 
+                             status === 'inativo' ? 'Inativo' : 
+                             status === 'manutencao' ? 'Em Manutenção' : 
+                             status === 'fora_uso' ? 'Fora de Uso' : status}
+                          </span>
+                        </span>
+                        {filterStatus === status && (
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -467,12 +694,12 @@ export default function Ativos() {
         <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-8 py-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="bg-gradient-to-br from-gray-500 to-gray-600 p-2 rounded-lg">
-                <Laptop className="h-5 w-5 text-white" />
+              <div className="bg-gradient-to-br from-green-500 to-green-600 p-3 rounded-xl shadow-md">
+                <Laptop className="h-6 w-6 text-white" />
               </div>
               <h2 className="text-xl font-semibold text-gray-800">Lista de Ativos</h2>
             </div>
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-gray-500 bg-white px-3 py-1 rounded-full border border-gray-200">
               {filteredAssets.length} de {assets.length} ativos
             </div>
           </div>
