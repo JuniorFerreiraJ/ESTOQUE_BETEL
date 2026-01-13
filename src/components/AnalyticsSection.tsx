@@ -12,6 +12,18 @@ interface AnalyticsSectionProps {
 const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ items, departments, history, onEditItem }) => {
     const [selectedDepartment, setSelectedDepartment] = useState('Todos');
     const [showDepartmentDropdown, setShowDepartmentDropdown] = useState(false);
+    const [selectedYear, setSelectedYear] = useState(() => {
+        const currentYear = new Date().getFullYear();
+        const years = new Set<number>();
+        history.forEach(item => {
+            if (item?.created_at) {
+                years.add(new Date(item.created_at).getFullYear());
+            }
+        });
+        const availableYears = Array.from(years).sort((a, b) => b - a);
+        return availableYears.length > 0 ? availableYears[0] : currentYear;
+    });
+    const [showYearDropdown, setShowYearDropdown] = useState(false);
     const [movementData, setMovementData] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -32,6 +44,25 @@ const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ items, departments,
         return new Set(filteredItems.map(item => item.categories?.name)).size;
     }, [filteredItems]);
 
+    // Get available years from history
+    const availableYears = useMemo(() => {
+        const years = new Set<number>();
+        history.forEach(item => {
+            if (item?.created_at) {
+                const year = new Date(item.created_at).getFullYear();
+                years.add(year);
+            }
+        });
+        return Array.from(years).sort((a, b) => b - a); // Sort descending
+    }, [history]);
+
+    // Update selected year if current year is not available
+    useEffect(() => {
+        if (availableYears.length > 0 && !availableYears.includes(selectedYear)) {
+            setSelectedYear(availableYears[0]);
+        }
+    }, [availableYears, selectedYear]);
+
     // Memoize the data processing function
     const processMovementData = useCallback(() => {
         try {
@@ -41,11 +72,16 @@ const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ items, departments,
             // Create a map for faster lookups
             const monthMap = new Map(months.map((month, index) => [index, { entrada: 0, saida: 0 }]));
 
-            // Process history in a single pass
+            // Process history in a single pass, filtering by selected year
             for (const item of filteredHistory) {
                 if (!item?.created_at) continue;
 
                 const itemDate = new Date(item.created_at);
+                const itemYear = itemDate.getFullYear();
+                
+                // Filter by selected year
+                if (itemYear !== selectedYear) continue;
+
                 const monthIndex = itemDate.getMonth();
 
                 const monthData = monthMap.get(monthIndex) || { entrada: 0, saida: 0 };
@@ -77,7 +113,7 @@ const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ items, departments,
             setMovementData([]);
             setIsLoading(false);
         }
-    }, [filteredHistory]);
+    }, [filteredHistory, selectedYear]);
 
     useEffect(() => {
         processMovementData();
@@ -214,7 +250,36 @@ const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ items, departments,
             </div>
 
             <div className="bg-white rounded-xl shadow-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Movimentação Mensal</h3>
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold text-gray-800">Movimentação Mensal</h3>
+                    <div className="relative">
+                        <button
+                            onClick={() => setShowYearDropdown(!showYearDropdown)}
+                            className="bg-white border border-gray-200 rounded-lg py-2 px-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 hover:border-green-300"
+                        >
+                            <div className="flex items-center justify-between gap-2">
+                                <span className="text-gray-700">Ano: {selectedYear}</span>
+                                <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${showYearDropdown ? 'transform rotate-180' : ''}`} />
+                            </div>
+                        </button>
+                        {showYearDropdown && (
+                            <div className="absolute z-10 mt-1 right-0 bg-white shadow-lg max-h-60 rounded-lg py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm min-w-[120px]">
+                                {availableYears.map((year) => (
+                                    <div
+                                        key={year}
+                                        className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-green-50 transition-colors duration-150 text-gray-700"
+                                        onClick={() => {
+                                            setSelectedYear(year);
+                                            setShowYearDropdown(false);
+                                        }}
+                                    >
+                                        {year}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
                 {isLoading ? (
                     <div className="h-[300px] flex items-center justify-center">
                         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-600"></div>
@@ -223,7 +288,7 @@ const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ items, departments,
                     <MovementChart data={movementData} />
                 ) : (
                     <div className="h-[300px] flex items-center justify-center text-gray-500">
-                        Nenhum dado disponível
+                        Nenhum dado disponível para {selectedYear}
                     </div>
                 )}
             </div>
