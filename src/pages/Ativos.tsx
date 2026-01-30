@@ -15,9 +15,11 @@ import {
   CheckCircle,
   XCircle,
   Eye,
+  EyeOff,
   RefreshCw,
   Clock,
-  AlertCircle
+  AlertCircle,
+  KeyRound
 } from 'lucide-react';
 import AddAssetModal from '../components/AddAssetModal';
 import { supabase } from '../lib/supabaseClient';
@@ -35,6 +37,7 @@ interface Asset {
   purchaseValue: number;
   warrantyExpiry: string;
   lastUpdate: string;
+  password?: string;
 }
 
 export default function Ativos() {
@@ -50,6 +53,8 @@ export default function Ativos() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  const [viewAsset, setViewAsset] = useState<Asset | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const assetTypes = ['notebook', 'celular', 'tablet', 'outros'];
   const [departments, setDepartments] = useState<string[]>([]);
@@ -82,7 +87,8 @@ export default function Ativos() {
           purchaseDate: item.delivery_date,
           purchaseValue: item.purchase_value,
           warrantyExpiry: item.warranty_expiry,
-          lastUpdate: item.updated_at
+          lastUpdate: item.updated_at,
+          password: item.password ?? undefined
         }));
         setAssets(formattedAssets);
       }
@@ -795,7 +801,14 @@ export default function Ativos() {
                     </td>
                     <td className="px-2 py-3 text-center">
                       <div className="flex items-center justify-center space-x-1">
-                        <button className="p-1 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors duration-200" title="Visualizar">
+                        <button
+                          onClick={() => {
+                            setViewAsset(asset);
+                            setShowPassword(false);
+                          }}
+                          className="p-1 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors duration-200"
+                          title="Visualizar detalhes e senha"
+                        >
                           <Eye className="h-3 w-3" />
                         </button>
                         <button 
@@ -836,6 +849,87 @@ export default function Ativos() {
             <Plus className="h-5 w-5 mr-2" />
             Adicionar Primeiro Ativo
           </button>
+        </div>
+      )}
+
+      {/* Modal de Visualizar Ativo (detalhes + senha) */}
+      {viewAsset && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-gray-100">
+            <div className="bg-gradient-to-r from-blue-50 to-blue-100 px-6 py-4 border-b border-blue-200 flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="bg-blue-500 p-2 rounded-xl">
+                  <Eye className="h-6 w-6 text-white" />
+                </div>
+                <h2 className="text-xl font-bold text-blue-900">Detalhes do Ativo</h2>
+              </div>
+              <button
+                onClick={() => { setViewAsset(null); setShowPassword(false); }}
+                className="p-2 text-blue-600 hover:bg-blue-200 rounded-lg transition-colors"
+              >
+                <XCircle className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <span className="text-gray-500 block">Equipamento</span>
+                  <span className="font-medium text-gray-900">{viewAsset.brand} {viewAsset.model}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500 block">Serial</span>
+                  <span className="font-medium text-gray-900">{viewAsset.serialNumber}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500 block">Usuário</span>
+                  <span className="font-medium text-gray-900">{viewAsset.currentUser}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500 block">Departamento</span>
+                  <span className="font-medium text-gray-900">{viewAsset.department}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500 block">Status</span>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(viewAsset.status)}`}>
+                    {viewAsset.status}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-500 block">Valor</span>
+                  <span className="font-medium text-gray-900">R$ {viewAsset.purchaseValue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                </div>
+                {viewAsset.warrantyExpiry && (
+                  <div>
+                    <span className="text-gray-500 block">Garantia</span>
+                    <span className="font-medium text-gray-900">{new Date(viewAsset.warrantyExpiry).toLocaleDateString('pt-BR')}</span>
+                  </div>
+                )}
+              </div>
+              <div className="pt-4 border-t border-gray-200">
+                <span className="text-gray-500 block text-sm mb-2 flex items-center gap-2">
+                  <KeyRound className="h-4 w-4" />
+                  Senha do ativo
+                </span>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-mono text-gray-800">
+                    {viewAsset.password
+                      ? (showPassword ? viewAsset.password : '••••••••••••')
+                      : '— Não cadastrada'}
+                  </div>
+                  {viewAsset.password && (
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="p-2 rounded-xl bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors"
+                      title={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                    >
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

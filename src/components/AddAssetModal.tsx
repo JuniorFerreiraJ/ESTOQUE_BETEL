@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Laptop, Building2, Users, DollarSign, Calendar, Shield, AlertCircle, CheckCircle } from 'lucide-react';
+import { X, Laptop, Building2, Users, DollarSign, Calendar, Shield, AlertCircle, CheckCircle, KeyRound } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
 interface AddAssetModalProps {
@@ -21,6 +21,7 @@ interface FormData {
   purchaseDate: string;
   purchaseValue: string;
   warrantyExpiry: string;
+  password: string;
 }
 
 export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, departments = [] }: AddAssetModalProps) {
@@ -34,7 +35,8 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
     status: 'ativo',
     purchaseDate: '',
     purchaseValue: '',
-    warrantyExpiry: ''
+    warrantyExpiry: '',
+    password: ''
   });
 
   const [loading, setLoading] = useState(false);
@@ -65,7 +67,8 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
           status: editAsset.status || 'ativo',
           purchaseDate: editAsset.delivery_date || editAsset.purchaseDate || '',
           purchaseValue: (editAsset.purchase_value ?? editAsset.purchaseValue ?? '').toString(),
-          warrantyExpiry: editAsset.warranty_expiry || editAsset.warrantyExpiry || ''
+          warrantyExpiry: editAsset.warranty_expiry || editAsset.warrantyExpiry || '',
+          password: editAsset.password ?? ''
         });
         setShowTransfer(false);
         setTransferUser('');
@@ -81,7 +84,8 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
           status: 'ativo',
           purchaseDate: '',
           purchaseValue: '',
-          warrantyExpiry: ''
+          warrantyExpiry: '',
+          password: ''
         });
         setShowTransfer(false);
         setTransferUser('');
@@ -153,6 +157,7 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
         delivery_date: formData.purchaseDate,
         purchase_value: parseFloat(formData.purchaseValue),
         warranty_expiry: formData.warrantyExpiry || null,
+        password: formData.password.trim() || null,
         created_by: 'Sistema', // TODO: Pegar do contexto de usuário
         updated_by: 'Sistema'
       };
@@ -545,6 +550,23 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
               {validationErrors.currentUser && (
                 <p className="text-red-600 text-sm mt-1">{validationErrors.currentUser}</p>
               )}
+            </div>
+
+            {/* Senha do ativo */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                <KeyRound className="h-4 w-4 inline mr-2" />
+                Senha do ativo
+              </label>
+              <input
+                type="text"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Senha do equipamento (opcional)"
+                className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
+              />
+              <p className="text-xs text-gray-500 mt-1">Para consulta no botão Visualizar (olho) na lista de ativos.</p>
             </div>
 
             {/* Status */}
