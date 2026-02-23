@@ -27,7 +27,7 @@ export default function Login() {
           <Package className="h-12 w-12 text-green-600" />
           <h2 className="mt-4 text-3xl font-bold text-gray-900">
             Sistema de estoque
-          
+
           </h2>
         </div>
 
@@ -37,7 +37,7 @@ export default function Login() {
               {error}
             </div>
           )}
-          
+
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700">
               Email

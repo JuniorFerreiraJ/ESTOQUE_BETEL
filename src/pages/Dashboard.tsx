@@ -58,6 +58,18 @@ function Dashboard() {
   const [users, setUsers] = useState<any[]>([]);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [showBulkExitModal, setShowBulkExitModal] = useState(false);
+  // Simulação em memória: controle de itens em preparação
+  const [stockStatusMap, setStockStatusMap] = useState<Record<string, 'disponivel' | 'preparacao'>>({});
+  const [reservedMap, setReservedMap] = useState<Record<string, number>>({});
+  const [prepInfoMap, setPrepInfoMap] = useState<
+    Record<string, { lastPrepReason?: string; lastExitReason?: string }>
+  >({});
+  const [prepModalItem, setPrepModalItem] = useState<any | null>(null);
+  const [prepModalQty, setPrepModalQty] = useState<string>('');
+  const [prepModalReason, setPrepModalReason] = useState<string>('Separação para preparação');
+  const [exitModalItem, setExitModalItem] = useState<any | null>(null);
+  const [exitModalQty, setExitModalQty] = useState<string>('');
+  const [exitModalReason, setExitModalReason] = useState<string>('Saída de preparação');
 
   useEffect(() => {
     fetchCategories();
@@ -485,6 +497,104 @@ function Dashboard() {
     </div>
   );
 
+  const getReserved = (itemId: string) => reservedMap[itemId] ?? 0;
+
+  const getAvailable = (item: any) =>
+    Math.max(0, (item.current_quantity || 0) - getReserved(item.id));
+
+  const getStockStatus = (itemId: string) => {
+    const reserved = getReserved(itemId);
+    if (reserved > 0) return 'preparacao';
+    return stockStatusMap[itemId] ?? 'disponivel';
+  };
+
+  const handleSendToPreparation = (item: any, qty: number, reason: string) => {
+    const currentQty = getAvailable(item);
+
+    if (!qty || qty <= 0) {
+      alert('Informe uma quantidade válida para preparação.');
+      return;
+    }
+    if (qty > currentQty) {
+      alert(`Quantidade para preparação não pode ser maior que a disponível (${currentQty}).`);
+      return;
+    }
+
+    setReservedMap(prev => ({
+      ...prev,
+      [item.id]: getReserved(item.id) + qty
+    }));
+    setStockStatusMap(prev => ({ ...prev, [item.id]: 'preparacao' }));
+
+    setPrepInfoMap(prev => ({
+      ...prev,
+      [item.id]: {
+        ...prev[item.id],
+        lastPrepReason: reason?.trim() || 'Separação para preparação'
+      }
+    }));
+
+    console.log('Separação para preparação (simulação, sem gravar no banco):', {
+      itemId: item.id,
+      itemName: item.name,
+      quantity: qty,
+      reason: reason?.trim() || 'Separação para preparação'
+    });
+  };
+
+  const handleExitFromPreparation = (item: any) => {
+    const reserved = getReserved(item.id);
+    if (reserved <= 0) {
+      alert('Não há quantidade em preparação para este item.');
+      return;
+    }
+
+    setExitModalItem(item);
+    setExitModalQty(String(reserved));
+    setExitModalReason('Saída de preparação');
+  };
+
+  const confirmExitFromPreparation = () => {
+    if (!exitModalItem) return;
+    const reserved = getReserved(exitModalItem.id);
+    const qty = Number(exitModalQty);
+
+    if (!qty || Number.isNaN(qty) || qty <= 0 || qty > reserved) {
+      alert('Quantidade inválida.');
+      return;
+    }
+
+    const reason = exitModalReason?.trim() || 'Saída de preparação';
+
+    // Simulação: apenas atualiza o mapa em memória e loga no console.
+    setReservedMap(prev => ({
+      ...prev,
+      [exitModalItem.id]: reserved - qty
+    }));
+    if (reserved - qty <= 0) {
+      setStockStatusMap(prev => ({ ...prev, [exitModalItem.id]: 'disponivel' }));
+    }
+
+    setPrepInfoMap(prev => ({
+      ...prev,
+      [exitModalItem.id]: {
+        ...prev[exitModalItem.id],
+        lastExitReason: reason
+      }
+    }));
+
+    console.log('Saída da preparação (simulação, sem gravar no banco):', {
+      itemId: exitModalItem.id,
+      itemName: exitModalItem.name,
+      quantity: qty,
+      reason
+    });
+
+    setExitModalItem(null);
+    setExitModalQty('');
+    setExitModalReason('Saída de preparação');
+  };
+
   const renderInventorySection = () => (
     <div className="space-y-8">
       <div className="bg-gradient-to-r from-green-50 to-green-100 p-6 rounded-xl shadow-lg">
@@ -648,6 +758,9 @@ function Dashboard() {
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Quantidade Mínima
                 </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status de Estoque
+                </th>
                 <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Ações
                 </th>
@@ -681,34 +794,94 @@ function Dashboard() {
                     <div className="text-sm text-gray-500">{item.departments?.name || '-'}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium ${
-                      item.current_quantity <= item.minimum_quantity
-                        ? 'bg-red-100 text-red-800'
-                        : 'bg-green-100 text-green-800'
-                    }`}>
-                      {item.current_quantity}
+                    <div className="flex flex-col gap-1 text-xs">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-800 font-medium">
+                        <span className="w-1.5 h-1.5 rounded-full bg-gray-500 mr-1.5" />
+                        Total: {item.current_quantity}
+                      </span>
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-green-50 text-green-800">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5" />
+                        Disponível: {getAvailable(item)}
+                      </span>
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-yellow-50 text-yellow-800">
+                        <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 mr-1.5" />
+                        Em preparação: {getReserved(item.id)}
+                      </span>
+                      {(prepInfoMap[item.id]?.lastPrepReason || prepInfoMap[item.id]?.lastExitReason) && (
+                        <div className="mt-1 space-y-0.5">
+                          {prepInfoMap[item.id]?.lastPrepReason && (
+                            <p className="text-[10px] text-gray-500">
+                              <span className="font-semibold">Última separação:</span>{' '}
+                              {prepInfoMap[item.id]?.lastPrepReason}
+                            </p>
+                          )}
+                          {prepInfoMap[item.id]?.lastExitReason && (
+                            <p className="text-[10px] text-gray-500">
+                              <span className="font-semibold">Última saída:</span>{' '}
+                              {prepInfoMap[item.id]?.lastExitReason}
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-500">{item.minimum_quantity}</div>
                   </td>
+                  {/* Status de estoque (simulação em memória) */}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {(() => {
+                      const status = getStockStatus(item.id);
+                      const label =
+                        status === 'preparacao' ? 'Em preparação' : 'Disponível no estoque';
+                      const classes =
+                        status === 'preparacao'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-blue-100 text-blue-800';
+                      return (
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${classes}`}>
+                          {label}
+                        </span>
+                      );
+                    })()}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex items-center justify-end space-x-3">
+                    <div className="flex flex-col items-end space-y-2">
                       <button
-                        onClick={() => handleEditItem(item)}
-                        className="text-green-600 hover:text-green-900 transition-colors duration-150"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeleteConfirmation(item.id);
+                        onClick={() => {
+                          setPrepModalItem(item);
+                          const available = getAvailable(item);
+                          setPrepModalQty(available > 0 ? '1' : '0');
                         }}
-                        className="text-red-600 hover:text-red-900 transition-colors duration-150"
+                        className="inline-flex items-center text-[11px] font-medium text-yellow-900 bg-yellow-300/80 hover:bg-yellow-400 px-3 py-1.5 rounded-md shadow-sm transition-colors"
                       >
-                        Excluir
+                        Separar para preparação
                       </button>
+                      {getReserved(item.id) > 0 && (
+                        <button
+                          onClick={() => handleExitFromPreparation(item)}
+                          className="inline-flex items-center text-[11px] font-medium text-red-900 bg-red-100 hover:bg-red-200 px-2.5 py-1 rounded-md shadow-sm"
+                        >
+                          Saída da preparação
+                        </button>
+                      )}
+                      <div className="flex items-center justify-end space-x-3 pt-1 border-t border-gray-100 mt-1">
+                        <button
+                          onClick={() => handleEditItem(item)}
+                          className="text-green-600 hover:text-green-900 transition-colors duration-150 text-xs"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteConfirmation(item.id);
+                          }}
+                          className="text-red-600 hover:text-red-900 transition-colors duration-150 text-xs"
+                        >
+                          Excluir
+                        </button>
+                      </div>
                     </div>
                   </td>
                 </tr>
@@ -716,6 +889,167 @@ function Dashboard() {
             </tbody>
           </table>
         </div>
+
+        {/* Modal de Separação para Preparação (simulação em memória) */}
+        {prepModalItem && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-40 px-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-gray-100">
+              <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-yellow-50 to-yellow-100">
+                <div>
+                  <h3 className="text-sm font-semibold text-yellow-900 uppercase tracking-wide">
+                    Separar para preparação
+                  </h3>
+                  <p className="text-xs text-yellow-800 mt-0.5">
+                    {prepModalItem.name} — Disponível: {getAvailable(prepModalItem)}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setPrepModalItem(null);
+                    setPrepModalQty('');
+                  }}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="px-6 py-5 space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Quantidade para separar
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={getAvailable(prepModalItem)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+                    value={prepModalQty}
+                    onChange={(e) => setPrepModalQty(e.target.value)}
+                  />
+                  <p className="mt-1 text-[11px] text-gray-500">
+                    Máximo disponível para separação: {getAvailable(prepModalItem)}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Motivo da separação
+                  </label>
+                  <textarea
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 resize-none"
+                    rows={3}
+                    value={prepModalReason}
+                    onChange={(e) => setPrepModalReason(e.target.value)}
+                    placeholder="Ex.: Separação para equipe X preparar, reserva para cliente Y, etc."
+                  />
+                </div>
+                <div className="flex justify-end gap-2 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPrepModalItem(null);
+                      setPrepModalQty('');
+                      setPrepModalReason('Separação para preparação');
+                    }}
+                    className="px-4 py-2 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const qtyNum = Number(prepModalQty);
+                      handleSendToPreparation(prepModalItem, qtyNum, prepModalReason);
+                      setPrepModalItem(null);
+                      setPrepModalQty('');
+                      setPrepModalReason('Separação para preparação');
+                    }}
+                    className="px-4 py-2 text-xs font-medium text-white bg-yellow-500 hover:bg-yellow-600 rounded-lg"
+                  >
+                    Confirmar separação
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de Saída da Preparação (simulação em memória) */}
+        {exitModalItem && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-40 px-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-gray-100">
+              <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-red-50 to-red-100">
+                <div>
+                  <h3 className="text-sm font-semibold text-red-900 uppercase tracking-wide">
+                    Saída da preparação
+                  </h3>
+                  <p className="text-xs text-red-800 mt-0.5">
+                    {exitModalItem.name} — Em preparação: {getReserved(exitModalItem.id)}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setExitModalItem(null);
+                    setExitModalQty('');
+                    setExitModalReason('Saída de preparação');
+                  }}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="px-6 py-5 space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Quantidade para saída
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={getReserved(exitModalItem.id)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    value={exitModalQty}
+                    onChange={(e) => setExitModalQty(e.target.value)}
+                  />
+                  <p className="mt-1 text-[11px] text-gray-500">
+                    Máximo em preparação: {getReserved(exitModalItem.id)}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Motivo da saída
+                  </label>
+                  <textarea
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none"
+                    rows={3}
+                    value={exitModalReason}
+                    onChange={(e) => setExitModalReason(e.target.value)}
+                    placeholder="Ex.: Envio para cliente XPTO, devolução não aprovada, etc."
+                  />
+                </div>
+                <div className="flex justify-end gap-2 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExitModalItem(null);
+                      setExitModalQty('');
+                      setExitModalReason('Saída de preparação');
+                    }}
+                    className="px-4 py-2 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirmExitFromPreparation}
+                    className="px-4 py-2 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg"
+                  >
+                    Confirmar saída
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {filteredItems.length === 0 && (
           <div className="text-center py-12">
