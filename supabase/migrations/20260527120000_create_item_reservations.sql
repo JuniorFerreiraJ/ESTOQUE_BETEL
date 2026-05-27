@@ -14,18 +14,21 @@ CREATE TABLE IF NOT EXISTS item_reservations (
 
 ALTER TABLE item_reservations ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Allow authenticated users to read reservations" ON item_reservations;
 CREATE POLICY "Allow authenticated users to read reservations"
   ON item_reservations
   FOR SELECT
   TO authenticated
   USING (true);
 
+DROP POLICY IF EXISTS "Allow authenticated users to insert reservations" ON item_reservations;
 CREATE POLICY "Allow authenticated users to insert reservations"
   ON item_reservations
   FOR INSERT
   TO authenticated
   WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Allow authenticated users to update reservations" ON item_reservations;
 CREATE POLICY "Allow authenticated users to update reservations"
   ON item_reservations
   FOR UPDATE

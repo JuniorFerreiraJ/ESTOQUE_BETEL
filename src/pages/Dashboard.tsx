@@ -115,7 +115,7 @@ function Dashboard() {
         }
       });
 
-      // merge com reservas locais (fallback/offline)
+      // merge com reservas locais pendentes (fallback/offline)
       try {
         const rawLocal = localStorage.getItem('local_item_reservations_v1');
         if (rawLocal) {
@@ -135,8 +135,6 @@ function Dashboard() {
 
       setReservedMap(map);
       setPrepInfoMap(prev => ({ ...prev, ...info }));
-      // salvar merge resultante localmente para persistência
-      saveLocalReservations(map, info);
     } catch (err) {
       console.error('Erro fetchReservations:', err);
     }
@@ -707,8 +705,6 @@ function Dashboard() {
       setReservedMap(newMapLocal);
       setStockStatusMap(prev => ({ ...prev, [id]: 'preparacao' }));
       setPrepInfoMap(newInfoLocal);
-      // sempre salvar uma cópia local para persistência no reload
-      saveLocalReservations(newMapLocal, newInfoLocal);
 
       console.log('Reserva criada:', data);
     } catch (err: any) {
