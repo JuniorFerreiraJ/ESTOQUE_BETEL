@@ -89,6 +89,135 @@ function Dashboard() {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
+  // Buscar reservas persistidas no banco
+  const fetchReservations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('item_reservations')
+        .select('item_id, quantity, reason, created_at')
+        .eq('status', 'reserved');
+
+      if (error) {
+        console.error('Erro ao buscar reservas (raw):', error);
+        try { console.error('Erro (string):', JSON.stringify(error, null, 2)); } catch (e) { /* ignore */ }
+        return;
+      }
+
+      const map: Record<string, number> = {};
+      const info: Record<string, { lastPrepReason?: string }> = {};
+
+      (data || []).forEach((r: any) => {
+        const id = String(r.item_id);
+        map[id] = (map[id] || 0) + (r.quantity || 0);
+        if (r.reason) {
+          // mantemos a última razão encontrada
+          info[id] = { lastPrepReason: r.reason };
+        }
+      });
+
+      // merge com reservas locais (fallback/offline)
+      try {
+        const rawLocal = localStorage.getItem('local_item_reservations_v1');
+        if (rawLocal) {
+          const parsed = JSON.parse(rawLocal);
+          const localMap: Record<string, number> = parsed.map || {};
+          const localInfo: Record<string, { lastPrepReason?: string }> = parsed.info || {};
+          Object.keys(localMap).forEach(k => {
+            map[k] = (map[k] || 0) + localMap[k];
+          });
+          Object.keys(localInfo).forEach(k => {
+            info[k] = info[k] || localInfo[k];
+          });
+        }
+      } catch (e) {
+        console.error('Erro ao mesclar reservas locais:', e);
+      }
+
+      setReservedMap(map);
+      setPrepInfoMap(prev => ({ ...prev, ...info }));
+      // salvar merge resultante localmente para persistência
+      saveLocalReservations(map, info);
+    } catch (err) {
+      console.error('Erro fetchReservations:', err);
+    }
+  };
+
+  const saveLocalReservations = (map: Record<string, number>, info: Record<string, { lastPrepReason?: string }>) => {
+    try {
+      localStorage.setItem('local_item_reservations_v1', JSON.stringify({ map, info }));
+    } catch (e) {
+      console.error('Erro ao salvar reservas locais:', e);
+    }
+  };
+
+  const loadLocalReservations = () => {
+    try {
+      const raw = localStorage.getItem('local_item_reservations_v1');
+      if (!raw) return { map: {}, info: {} };
+      return JSON.parse(raw);
+    } catch (e) {
+      console.error('Erro ao carregar reservas locais:', e);
+      return { map: {}, info: {} };
+    }
+  };
+
+  // Envia reservas locais pendentes para o servidor quando houver sessão
+  const syncLocalReservations = async (localData?: { map: Record<string, number>, info: Record<string, { lastPrepReason?: string }> }) => {
+    try {
+      const dataToSync = localData || loadLocalReservations();
+      const map = dataToSync.map || {};
+      const info = dataToSync.info || {};
+      const keys = Object.keys(map);
+      if (keys.length === 0) {
+        return true;
+      }
+
+      const inserts = keys.map(k => ({
+        item_id: k,
+        quantity: map[k],
+        reason: info[k]?.lastPrepReason || null,
+        status: 'reserved'
+      }));
+
+      console.log('Sincronizando reservas locais para servidor:', inserts);
+      const { data, error } = await supabase.from('item_reservations').insert(inserts).select();
+      if (error) {
+        console.error('Erro ao sincronizar reservas locais:', error);
+        return false;
+      }
+
+      // sincronização bem-sucedida: limpar local e recarregar reservas do servidor
+      localStorage.removeItem('local_item_reservations_v1');
+      await fetchReservations();
+      console.log('Sincronização concluída:', data);
+      return true;
+    } catch (err) {
+      console.error('Erro syncLocalReservations:', err);
+      return false;
+    }
+  };
+
+  // chamar fetchReservations após a declaração
+  useEffect(() => {
+    (async () => {
+      await fetchReservations();
+      try {
+        const session = await supabase.auth.getSession();
+        const hasSession = !!session?.data?.session;
+        if (hasSession) {
+          // tentar sincronizar reservas locais pendentes
+          const local = loadLocalReservations();
+          const hasLocal = Object.keys(local.map || {}).length > 0;
+          if (hasLocal) {
+            await syncLocalReservations(local);
+          }
+        }
+      } catch (e) {
+        console.error('Erro ao verificar sessão/sincronizar reservas:', e);
+      }
+    })();
+  }, []);
+
   useEffect(() => {
     const fetchDatabaseStats = async () => {
       try {
@@ -253,18 +382,18 @@ function Dashboard() {
     if (activeDepartment === 'Todos') {
       return categories;
     }
-    
+
     // Buscar itens que pertencem ao departamento selecionado
-    const departmentItems = items.filter(item => 
+    const departmentItems = items.filter(item =>
       item.departments?.name === activeDepartment
     );
-    
+
     // Extrair categorias únicas desses itens
     const departmentCategoryIds = new Set(
       departmentItems.map(item => item.category_id)
     );
-    
-    return categories.filter(category => 
+
+    return categories.filter(category =>
       departmentCategoryIds.has(category.id)
     );
   }, [categories, items, activeDepartment]);
@@ -300,17 +429,17 @@ function Dashboard() {
   const handleDepartmentChange = (departmentName: string) => {
     setActiveDepartment(departmentName);
     setShowDepartmentDropdown(false);
-    
+
     // Se a categoria atual não existe no novo departamento, resetar para "Todos"
     if (departmentName !== 'Todos' && activeCategory !== 'Todos') {
-      const departmentItems = items.filter(item => 
+      const departmentItems = items.filter(item =>
         item.departments?.name === departmentName
       );
       const departmentCategoryIds = new Set(
         departmentItems.map(item => item.category_id)
       );
       const currentCategory = categories.find(cat => cat.name === activeCategory);
-      
+
       if (currentCategory && !departmentCategoryIds.has(currentCategory.id)) {
         setActiveCategory('Todos');
       }
@@ -318,8 +447,8 @@ function Dashboard() {
   };
 
   const handleSelectItem = (itemId: string) => {
-    setSelectedItems(prev => 
-      prev.includes(itemId) 
+    setSelectedItems(prev =>
+      prev.includes(itemId)
         ? prev.filter(id => id !== itemId)
         : [...prev, itemId]
     );
@@ -363,11 +492,11 @@ function Dashboard() {
         const uniqueUsers = new Set(historyData.map(h => h.user_name));
         // Convertendo para array e criando objetos com a estrutura necessária
         const usersArray = Array.from(uniqueUsers).map(name => ({ user_name: name }));
-        
+
         // Debug: Mostrar os usuários únicos encontrados
         console.log('Usuários únicos encontrados:', Array.from(uniqueUsers));
         console.log('Total de usuários:', uniqueUsers.size);
-        
+
         setUsers(usersArray);
       }
     } catch (error) {
@@ -497,19 +626,37 @@ function Dashboard() {
     </div>
   );
 
-  const getReserved = (itemId: string) => reservedMap[itemId] ?? 0;
+  const getReserved = (itemId: string | number) => reservedMap[String(itemId)] ?? 0;
 
   const getAvailable = (item: any) =>
     Math.max(0, (item.current_quantity || 0) - getReserved(item.id));
 
-  const getStockStatus = (itemId: string) => {
+  const getStockStatus = (itemId: string | number) => {
     const reserved = getReserved(itemId);
     if (reserved > 0) return 'preparacao';
-    return stockStatusMap[itemId] ?? 'disponivel';
+    return stockStatusMap[String(itemId)] ?? 'disponivel';
   };
 
-  const handleSendToPreparation = (item: any, qty: number, reason: string) => {
+  const openPrepModal = (item: any) => {
+    if (!item) {
+      console.error('openPrepModal: item inválido', item);
+      alert('Item inválido — impossível abrir modal de separação.');
+      return;
+    }
+    console.log('Abrindo modal de separação para item:', item);
+    setPrepModalItem(item);
+    const available = getAvailable(item);
+    setPrepModalQty(available > 0 ? '1' : '0');
+  };
+
+  const handleSendToPreparation = async (item: any, qty: number, reason: string) => {
     const currentQty = getAvailable(item);
+
+    if (!item || !item.id) {
+      console.error('handleSendToPreparation: item inválido', item);
+      alert('Erro: item inválido. Abra o modal novamente e tente selecionar um item.');
+      return;
+    }
 
     if (!qty || qty <= 0) {
       alert('Informe uma quantidade válida para preparação.');
@@ -519,27 +666,68 @@ function Dashboard() {
       alert(`Quantidade para preparação não pode ser maior que a disponível (${currentQty}).`);
       return;
     }
-
-    setReservedMap(prev => ({
-      ...prev,
-      [item.id]: getReserved(item.id) + qty
-    }));
-    setStockStatusMap(prev => ({ ...prev, [item.id]: 'preparacao' }));
-
-    setPrepInfoMap(prev => ({
-      ...prev,
-      [item.id]: {
-        ...prev[item.id],
-        lastPrepReason: reason?.trim() || 'Separação para preparação'
+    try {
+      console.log('Criando reserva payload:', { item_id: item.id, quantity: qty, reason });
+      try {
+        const session = await supabase.auth.getSession();
+        console.log('Supabase session (debug):', session);
+      } catch (e) {
+        console.log('Não foi possível obter sessão (debug):', e);
       }
-    }));
+      const { data, error } = await supabase
+        .from('item_reservations')
+        .insert({ item_id: item.id, quantity: qty, reason: reason?.trim() || null, status: 'reserved' })
+        .select()
+        .single();
 
-    console.log('Separação para preparação (simulação, sem gravar no banco):', {
-      itemId: item.id,
-      itemName: item.name,
-      quantity: qty,
-      reason: reason?.trim() || 'Separação para preparação'
-    });
+      if (error) {
+        // Log completo para debugar RLS/permssões e shape do erro
+        console.error('Erro ao criar reserva (raw):', error);
+        try {
+          console.error('Erro (string):', JSON.stringify(error, null, 2));
+        } catch (e) {
+          console.error('Erro ao serializar error:', e);
+        }
+        const msg = error?.message ?? JSON.stringify(error);
+        // fallback local
+        const idLocal = String(item.id);
+        const newMapLocal = { ...reservedMap, [idLocal]: (reservedMap[idLocal] || 0) + qty };
+        const newInfoLocal = { ...prepInfoMap, [idLocal]: { ...prepInfoMap[idLocal], lastPrepReason: reason?.trim() || 'Separação para preparação' } };
+        setReservedMap(newMapLocal);
+        setStockStatusMap(prev => ({ ...prev, [idLocal]: 'preparacao' }));
+        setPrepInfoMap(newInfoLocal);
+        saveLocalReservations(newMapLocal, newInfoLocal);
+        alert('Reserva salva localmente (offline): ' + msg);
+        return;
+      }
+
+      const id = String(item.id);
+      const newMapLocal = { ...reservedMap, [id]: (reservedMap[id] || 0) + qty };
+      const newInfoLocal = { ...prepInfoMap, [id]: { ...prepInfoMap[id], lastPrepReason: reason?.trim() || 'Separação para preparação' } };
+      setReservedMap(newMapLocal);
+      setStockStatusMap(prev => ({ ...prev, [id]: 'preparacao' }));
+      setPrepInfoMap(newInfoLocal);
+      // sempre salvar uma cópia local para persistência no reload
+      saveLocalReservations(newMapLocal, newInfoLocal);
+
+      console.log('Reserva criada:', data);
+    } catch (err: any) {
+      console.error('Erro handleSendToPreparation:', err);
+      try {
+        console.error('handleSendToPreparation error (string):', JSON.stringify(err, null, 2));
+      } catch (e) {
+        console.error('Erro ao serializar err:', e);
+      }
+      // fallback local
+      const idLocal = String(item.id);
+      const newMapLocal = { ...reservedMap, [idLocal]: (reservedMap[idLocal] || 0) + qty };
+      const newInfoLocal = { ...prepInfoMap, [idLocal]: { ...prepInfoMap[idLocal], lastPrepReason: reason?.trim() || 'Separação para preparação' } };
+      setReservedMap(newMapLocal);
+      setStockStatusMap(prev => ({ ...prev, [idLocal]: 'preparacao' }));
+      setPrepInfoMap(newInfoLocal);
+      saveLocalReservations(newMapLocal, newInfoLocal);
+      alert('Erro ao criar reserva no servidor — reserva salva localmente. Veja console para detalhes.');
+    }
   };
 
   const handleExitFromPreparation = (item: any) => {
@@ -554,7 +742,57 @@ function Dashboard() {
     setExitModalReason('Saída de preparação');
   };
 
-  const confirmExitFromPreparation = () => {
+  const consumeReservations = async (itemId: string | number, qtyToConsume: number) => {
+    try {
+      const { data: reservations, error } = await supabase
+        .from('item_reservations')
+        .select('*')
+        .eq('item_id', itemId)
+        .eq('status', 'reserved')
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Erro ao buscar reservas para consumo:', error);
+        return false;
+      }
+
+      let remaining = qtyToConsume;
+
+      for (const r of reservations || []) {
+        if (remaining <= 0) break;
+        if (r.quantity <= remaining) {
+          // completa a reserva
+          const { error: e } = await supabase
+            .from('item_reservations')
+            .update({ status: 'completed', completed_at: new Date().toISOString() })
+            .eq('id', r.id);
+          if (e) {
+            console.error('Erro ao completar reserva:', e);
+            return false;
+          }
+          remaining -= r.quantity;
+        } else {
+          // reduz a quantidade da reserva
+          const { error: e } = await supabase
+            .from('item_reservations')
+            .update({ quantity: r.quantity - remaining })
+            .eq('id', r.id);
+          if (e) {
+            console.error('Erro ao reduzir reserva:', e);
+            return false;
+          }
+          remaining = 0;
+        }
+      }
+
+      return true;
+    } catch (err) {
+      console.error('Erro consumeReservations:', err);
+      return false;
+    }
+  };
+
+  const confirmExitFromPreparation = async () => {
     if (!exitModalItem) return;
     const reserved = getReserved(exitModalItem.id);
     const qty = Number(exitModalQty);
@@ -566,33 +804,51 @@ function Dashboard() {
 
     const reason = exitModalReason?.trim() || 'Saída de preparação';
 
-    // Simulação: apenas atualiza o mapa em memória e loga no console.
-    setReservedMap(prev => ({
-      ...prev,
-      [exitModalItem.id]: reserved - qty
-    }));
-    if (reserved - qty <= 0) {
-      setStockStatusMap(prev => ({ ...prev, [exitModalItem.id]: 'disponivel' }));
-    }
-
-    setPrepInfoMap(prev => ({
-      ...prev,
-      [exitModalItem.id]: {
-        ...prev[exitModalItem.id],
-        lastExitReason: reason
+    try {
+      const ok = await consumeReservations(exitModalItem.id, qty);
+      if (!ok) {
+        // fallback local: reduzir reserva localmente
+        const idLocal = String(exitModalItem.id);
+        const currentLocal = reservedMap[idLocal] ?? 0;
+        const newMapLocal = { ...reservedMap, [idLocal]: Math.max(0, currentLocal - qty) };
+        const newInfoLocal = { ...prepInfoMap, [idLocal]: { ...prepInfoMap[idLocal], lastExitReason: reason } };
+        setReservedMap(newMapLocal);
+        setPrepInfoMap(newInfoLocal);
+        saveLocalReservations(newMapLocal, newInfoLocal);
+        if ((newMapLocal[idLocal] || 0) <= 0) {
+          setStockStatusMap(prev => ({ ...prev, [idLocal]: 'disponivel' }));
+        }
+        console.log('Saída da preparação salva localmente (fallback):', { itemId: exitModalItem.id, qty });
+        setExitModalItem(null);
+        setExitModalQty('');
+        setExitModalReason('Saída de preparação');
+        return;
       }
-    }));
 
-    console.log('Saída da preparação (simulação, sem gravar no banco):', {
-      itemId: exitModalItem.id,
-      itemName: exitModalItem.name,
-      quantity: qty,
-      reason
-    });
+      // refresh reservations from DB
+      await fetchReservations();
 
-    setExitModalItem(null);
-    setExitModalQty('');
-    setExitModalReason('Saída de preparação');
+      const newReserved = getReserved(exitModalItem.id);
+      if (newReserved <= 0) {
+        setStockStatusMap(prev => ({ ...prev, [String(exitModalItem.id)]: 'disponivel' }));
+      }
+
+      setPrepInfoMap(prev => ({ ...prev, [String(exitModalItem.id)]: { ...prev[String(exitModalItem.id)], lastExitReason: reason } }));
+
+      console.log('Saída da preparação (persistida):', {
+        itemId: exitModalItem.id,
+        itemName: exitModalItem.name,
+        quantity: qty,
+        reason
+      });
+
+      setExitModalItem(null);
+      setExitModalQty('');
+      setExitModalReason('Saída de preparação');
+    } catch (err) {
+      console.error('Erro confirmExitFromPreparation:', err);
+      alert('Erro ao confirmar saída da preparação');
+    }
   };
 
   const renderInventorySection = () => (
@@ -848,11 +1104,7 @@ function Dashboard() {
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex flex-col items-end space-y-2">
                       <button
-                        onClick={() => {
-                          setPrepModalItem(item);
-                          const available = getAvailable(item);
-                          setPrepModalQty(available > 0 ? '1' : '0');
-                        }}
+                        onClick={() => openPrepModal(item)}
                         className="inline-flex items-center text-[11px] font-medium text-yellow-900 bg-yellow-300/80 hover:bg-yellow-400 px-3 py-1.5 rounded-md shadow-sm transition-colors"
                       >
                         Separar para preparação
