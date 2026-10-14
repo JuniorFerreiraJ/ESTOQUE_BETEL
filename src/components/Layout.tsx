@@ -11,7 +11,9 @@ import {
   Settings,
   ClipboardList,
   Smartphone,
-  Laptop
+  Laptop,
+  Moon,
+  Sun
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -26,6 +28,12 @@ export default function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeSection, setActiveSection] = useState('dashboard');
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('estoque-theme') === 'dark');
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', darkMode);
+    localStorage.setItem('estoque-theme', darkMode ? 'dark' : 'light');
+  }, [darkMode]);
 
   useEffect(() => {
     // Determine active section based on current path
@@ -194,6 +202,15 @@ export default function Layout({ children }: LayoutProps) {
         </div>
 
         <div className="border-t border-green-600 p-4">
+          <button
+            onClick={() => setDarkMode(prev => !prev)}
+            aria-label={darkMode ? 'Ativar modo claro' : 'Ativar modo escuro'}
+            title={darkMode ? 'Modo claro' : 'Modo escuro'}
+            className="mb-2 flex items-center rounded-md px-3 py-3 text-sm font-medium text-green-100 hover:bg-green-600 hover:text-white w-full"
+          >
+            {darkMode ? <Sun className="h-5 w-5 mr-3" /> : <Moon className="h-5 w-5 mr-3" />}
+            {sidebarOpen && (darkMode ? 'Modo claro' : 'Modo escuro')}
+          </button>
           <button
             onClick={handleSignOut}
             className="flex items-center px-3 py-3 text-sm font-medium text-green-100 hover:bg-green-600 hover:text-white rounded-md w-full"

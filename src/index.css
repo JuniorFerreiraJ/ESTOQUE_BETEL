@@ -1,3 +1,135 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+    .dark body {
+        background-color: #0f172a;
+        color: #e5e7eb;
+    }
+
+    .dark .bg-gray-50,
+    .dark .bg-gray-100 {
+        background-color: #0f172a;
+    }
+
+    .dark .bg-white {
+        background-color: #1e293b;
+    }
+
+    .dark .bg-gradient-to-r,
+    .dark .bg-gradient-to-br,
+    .dark .bg-gradient-to-b {
+        background-image: none;
+        background-color: #1e293b;
+    }
+
+    .dark .bg-green-50,
+    .dark .bg-blue-50,
+    .dark .bg-yellow-50,
+    .dark .bg-red-50,
+    .dark .bg-orange-50,
+    .dark .bg-indigo-50,
+    .dark .bg-purple-50 {
+        background-color: #243244;
+    }
+
+    .dark .bg-green-100,
+    .dark .bg-blue-100,
+    .dark .bg-yellow-100,
+    .dark .bg-red-100,
+    .dark .bg-orange-100,
+    .dark .bg-indigo-100,
+    .dark .bg-purple-100 {
+        background-color: #2d3d50;
+    }
+
+    .dark .text-green-600,
+    .dark .text-green-700,
+    .dark .text-green-800 {
+        color: #86efac;
+    }
+
+    .dark .text-blue-600,
+    .dark .text-blue-700,
+    .dark .text-blue-800 {
+        color: #93c5fd;
+    }
+
+    .dark .text-yellow-600,
+    .dark .text-yellow-700,
+    .dark .text-yellow-800 {
+        color: #fde68a;
+    }
+
+    .dark .text-red-600,
+    .dark .text-red-700,
+    .dark .text-red-800 {
+        color: #fca5a5;
+    }
+
+    .dark .text-orange-600,
+    .dark .text-orange-700,
+    .dark .text-orange-800,
+    .dark .text-indigo-600,
+    .dark .text-indigo-700,
+    .dark .text-indigo-800,
+    .dark .text-purple-600,
+    .dark .text-purple-700,
+    .dark .text-purple-800 {
+        color: #c4b5fd;
+    }
+
+    .dark .border-green-100,
+    .dark .border-green-200,
+    .dark .border-blue-100,
+    .dark .border-blue-200,
+    .dark .border-yellow-100,
+    .dark .border-yellow-200,
+    .dark .border-red-100,
+    .dark .border-red-200,
+    .dark .border-orange-100,
+    .dark .border-orange-200,
+    .dark .border-indigo-100,
+    .dark .border-indigo-200,
+    .dark .border-purple-100,
+    .dark .border-purple-200 {
+        border-color: #475569;
+    }
+
+    .dark .text-gray-900,
+    .dark .text-gray-800,
+    .dark .text-gray-700 {
+        color: #f3f4f6;
+    }
+
+    .dark .text-gray-600,
+    .dark .text-gray-500,
+    .dark .text-gray-400 {
+        color: #9ca3af;
+    }
+
+    .dark .border-gray-100,
+    .dark .border-gray-200,
+    .dark .border-gray-300 {
+        border-color: #334155;
+    }
+
+    .dark input,
+    .dark select,
+    .dark textarea {
+        background-color: #0f172a;
+        color: #f3f4f6;
+        border-color: #4b5563;
+    }
+
+    .dark .divide-gray-100> :not([hidden])~ :not([hidden]),
+    .dark .divide-gray-200> :not([hidden])~ :not([hidden]) {
+        border-color: #334155;
+    }
+
+    .dark thead,
+    .dark .bg-gray-50\/80 {
+        background-color: #263548;
+    }
+}

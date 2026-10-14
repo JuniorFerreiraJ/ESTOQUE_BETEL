@@ -23,7 +23,6 @@ const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ items, departments,
         const availableYears = Array.from(years).sort((a, b) => b - a);
         return availableYears.length > 0 ? availableYears[0] : currentYear;
     });
-    const [showYearDropdown, setShowYearDropdown] = useState(false);
     const [movementData, setMovementData] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -47,13 +46,14 @@ const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ items, departments,
     // Get available years from history
     const availableYears = useMemo(() => {
         const years = new Set<number>();
+
         history.forEach(item => {
-            if (item?.created_at) {
-                const year = new Date(item.created_at).getFullYear();
-                years.add(year);
-            }
+            if (!item?.created_at) return;
+            const year = new Date(item.created_at).getFullYear();
+            if (!Number.isNaN(year)) years.add(year);
         });
-        return Array.from(years).sort((a, b) => b - a); // Sort descending
+
+        return Array.from(years).sort((a, b) => b - a);
     }, [history]);
 
     // Update selected year if current year is not available
@@ -78,7 +78,7 @@ const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ items, departments,
 
                 const itemDate = new Date(item.created_at);
                 const itemYear = itemDate.getFullYear();
-                
+
                 // Filter by selected year
                 if (itemYear !== selectedYear) continue;
 
@@ -252,32 +252,24 @@ const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ items, departments,
             <div className="bg-white rounded-xl shadow-lg p-6">
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-semibold text-gray-800">Movimentação Mensal</h3>
-                    <div className="relative">
-                        <button
-                            onClick={() => setShowYearDropdown(!showYearDropdown)}
-                            className="bg-white border border-gray-200 rounded-lg py-2 px-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 hover:border-green-300"
-                        >
-                            <div className="flex items-center justify-between gap-2">
-                                <span className="text-gray-700">Ano: {selectedYear}</span>
-                                <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${showYearDropdown ? 'transform rotate-180' : ''}`} />
-                            </div>
-                        </button>
-                        {showYearDropdown && (
-                            <div className="absolute z-10 mt-1 right-0 bg-white shadow-lg max-h-60 rounded-lg py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm min-w-[120px]">
+                    <div className="relative flex items-center gap-2">
+                        <label htmlFor="analytics-year" className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            Ano
+                        </label>
+                        <div className="relative">
+                            <select
+                                id="analytics-year"
+                                value={selectedYear}
+                                onChange={(event) => setSelectedYear(Number(event.target.value))}
+                                className="appearance-none rounded-lg border border-green-200 bg-green-50 py-2 pl-3 pr-9 text-sm font-semibold text-green-800 shadow-sm transition-colors hover:border-green-400 focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500"
+                                aria-label="Selecionar ano do gráfico"
+                            >
                                 {availableYears.map((year) => (
-                                    <div
-                                        key={year}
-                                        className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-green-50 transition-colors duration-150 text-gray-700"
-                                        onClick={() => {
-                                            setSelectedYear(year);
-                                            setShowYearDropdown(false);
-                                        }}
-                                    >
-                                        {year}
-                                    </div>
+                                    <option key={year} value={year}>{year}</option>
                                 ))}
-                            </div>
-                        )}
+                            </select>
+                            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-green-700" />
+                        </div>
                     </div>
                 </div>
                 {isLoading ? (

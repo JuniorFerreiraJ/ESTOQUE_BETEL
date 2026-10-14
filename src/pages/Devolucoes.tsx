@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, X, Check, Search, ClipboardList, ArchiveRestore, Trash2, Info, AlertCircle, Calendar, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
+import { Plus, X, Check, Search, ClipboardList, ArchiveRestore, Trash2, Info, AlertCircle, Calendar, ChevronLeft, ChevronRight, Pencil, RotateCcw } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
 interface Devolucao {
@@ -145,12 +145,12 @@ function NovaDevolucaoModal({ isOpen, onClose, onSuccess, departamentos }: { isO
   );
 }
 
-function EditarDevolucaoModal({ isOpen, onClose, onSuccess, departamentos, devolucao }: { 
-  isOpen: boolean, 
-  onClose: () => void, 
-  onSuccess: () => void, 
+function EditarDevolucaoModal({ isOpen, onClose, onSuccess, departamentos, devolucao }: {
+  isOpen: boolean,
+  onClose: () => void,
+  onSuccess: () => void,
   departamentos: string[],
-  devolucao: Devolucao | null 
+  devolucao: Devolucao | null
 }) {
   const [item_name, setItemName] = useState('');
   const [quantity, setQuantity] = useState(1);
@@ -230,7 +230,7 @@ function EditarDevolucaoModal({ isOpen, onClose, onSuccess, departamentos, devol
           department,
         })
         .eq('id', devolucao.id);
-      
+
       if (error) throw error;
       onSuccess();
       onClose();
@@ -253,10 +253,10 @@ function EditarDevolucaoModal({ isOpen, onClose, onSuccess, departamentos, devol
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium mb-1">Departamento *</label>
-            <select 
-              className="w-full border rounded px-3 py-2" 
-              value={department} 
-              onChange={e => setDepartment(e.target.value)} 
+            <select
+              className="w-full border rounded px-3 py-2"
+              value={department}
+              onChange={e => setDepartment(e.target.value)}
               required
               disabled={devolucao.status !== 'Pendente'}
             >
@@ -267,10 +267,10 @@ function EditarDevolucaoModal({ isOpen, onClose, onSuccess, departamentos, devol
           {department && (
             <div>
               <label className="block text-sm font-medium mb-1">Item *</label>
-              <select 
-                className="w-full border rounded px-3 py-2" 
-                value={item_name} 
-                onChange={e => setItemName(e.target.value)} 
+              <select
+                className="w-full border rounded px-3 py-2"
+                value={item_name}
+                onChange={e => setItemName(e.target.value)}
                 required
                 disabled={devolucao.status !== 'Pendente'}
               >
@@ -283,37 +283,36 @@ function EditarDevolucaoModal({ isOpen, onClose, onSuccess, departamentos, devol
           )}
           <div>
             <label className="block text-sm font-medium mb-1">Quantidade *</label>
-            <input 
-              type="number" 
-              min={1} 
-              className="w-full border rounded px-3 py-2" 
-              value={quantity} 
-              onChange={e => setQuantity(Number(e.target.value))} 
+            <input
+              type="number"
+              min={1}
+              className="w-full border rounded px-3 py-2"
+              value={quantity}
+              onChange={e => setQuantity(Number(e.target.value))}
               required
               disabled={devolucao.status !== 'Pendente'}
             />
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Motivo *</label>
-            <input 
-              type="text" 
-              className="w-full border rounded px-3 py-2" 
-              value={reason} 
-              onChange={e => setReason(e.target.value)} 
+            <input
+              type="text"
+              className="w-full border rounded px-3 py-2"
+              value={reason}
+              onChange={e => setReason(e.target.value)}
               required
               disabled={devolucao.status !== 'Pendente'}
             />
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 rounded bg-gray-100 text-gray-700">Cancelar</button>
-            <button 
-              type="submit" 
-              disabled={loading || devolucao.status !== 'Pendente'} 
-              className={`px-4 py-2 rounded text-white ${
-                devolucao.status === 'Pendente' 
-                  ? 'bg-blue-600 hover:bg-blue-700' 
-                  : 'bg-gray-400 cursor-not-allowed'
-              }`}
+            <button
+              type="submit"
+              disabled={loading || devolucao.status !== 'Pendente'}
+              className={`px-4 py-2 rounded text-white ${devolucao.status === 'Pendente'
+                ? 'bg-blue-600 hover:bg-blue-700'
+                : 'bg-gray-400 cursor-not-allowed'
+                }`}
             >
               {loading ? 'Salvando...' : 'Salvar'}
             </button>
@@ -343,8 +342,11 @@ export default function Devolucoes() {
   }, []);
 
   const fetchDevolucoes = async () => {
-    // Ajuste para buscar da tabela correta no seu banco
-    const { data } = await supabase.from('devolucoes').select('*');
+    const { data } = await supabase
+      .from('devolucoes')
+      .select('*')
+      .order('date', { ascending: false })
+      .order('id', { ascending: false });
     if (data) setDevolucoes(data);
   };
 
@@ -356,18 +358,33 @@ export default function Devolucoes() {
   const devolucoesFiltradas = devolucoes.filter((d) => {
     const devolucaoDate = new Date(d.date);
     const devolucaoMonth = `${devolucaoDate.getFullYear()}-${String(devolucaoDate.getMonth() + 1).padStart(2, '0')}`;
-    
-    const matchBusca =
-      (d.item_name?.toLowerCase() || '').includes(busca.toLowerCase()) ||
-      (d.reason?.toLowerCase() || '').includes(busca.toLowerCase());
+
+    const termoBusca = busca.trim().toLowerCase();
+    const matchBusca = !termoBusca || [d.item_name, d.reason, d.department, d.status]
+      .some(valor => valor?.toLowerCase().includes(termoBusca));
     const matchDept = filtroDepartamento === 'Todos' || d.department === filtroDepartamento;
     const matchStatus = filtroStatus === 'Todos' || d.status === filtroStatus;
     const matchMonth = devolucaoMonth === selectedMonth;
-    
+
     return matchBusca && matchDept && matchStatus && matchMonth;
   });
 
-  const statusCount = (status: string) => devolucoes.filter(d => d.status === status).length;
+  const statusCount = (status: Devolucao['status']) =>
+    devolucoesFiltradas.filter(d => d.status === status).length;
+
+  const atualizarStatus = async (devolucao: Devolucao, status: Devolucao['status']) => {
+    const { error } = await supabase
+      .from('devolucoes')
+      .update({ status })
+      .eq('id', devolucao.id);
+    if (error) {
+      alert(`Erro ao atualizar devolução: ${error.message}`);
+      return;
+    }
+    setDevolucoes(atual => atual.map(item =>
+      item.id === devolucao.id ? { ...item, status } : item
+    ));
+  };
 
   // Função para mover devolução aprovada para o inventário
   const handleMoverParaInventario = async (devolucao: Devolucao) => {
@@ -424,30 +441,12 @@ export default function Devolucoes() {
     alert('Devolução movida para o inventário e registrada no histórico com sucesso!');
   };
 
-  // Função para aprovar devolução
   const handleAprovarDevolucao = async (devolucao: Devolucao) => {
-    const { error } = await supabase
-      .from('devolucoes')
-      .update({ status: 'Aprovada' })
-      .eq('id', devolucao.id);
-    if (error) {
-      alert('Erro ao aprovar devolução.');
-      return;
-    }
-    fetchDevolucoes();
+    await atualizarStatus(devolucao, 'Aprovada');
   };
 
-  // Função para rejeitar devolução
   const handleRejeitarDevolucao = async (devolucao: Devolucao) => {
-    const { error } = await supabase
-      .from('devolucoes')
-      .update({ status: 'Rejeitada' })
-      .eq('id', devolucao.id);
-    if (error) {
-      alert('Erro ao rejeitar devolução.');
-      return;
-    }
-    fetchDevolucoes();
+    await atualizarStatus(devolucao, 'Rejeitada');
   };
 
   // Função para deletar devolução
@@ -483,6 +482,14 @@ export default function Devolucoes() {
     const date = new Date(year, month); // month já é 0-based
     setSelectedMonth(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`);
   };
+
+  const limparFiltros = () => {
+    setBusca('');
+    setFiltroDepartamento('Todos');
+    setFiltroStatus('Todos');
+  };
+
+  const possuiFiltrosAtivos = busca.trim() || filtroDepartamento !== 'Todos' || filtroStatus !== 'Todos';
 
   return (
     <div className="space-y-8 p-6 bg-gray-50 min-h-screen">
@@ -537,18 +544,18 @@ export default function Devolucoes() {
       </div>
 
       <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
-        <div className="flex flex-col md:flex-row gap-4 items-center mb-4">
-          <div className="flex-1 flex items-center gap-2 bg-white rounded-lg shadow px-3 py-2">
+        <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center mb-4">
+          <div className="flex-1 flex items-center gap-2 bg-white rounded-lg border border-gray-200 px-3 py-2">
             <Search className="w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Buscar por item ou motivo..."
+              placeholder="Buscar item, motivo, departamento ou status..."
               className="flex-1 outline-none bg-transparent text-base"
               value={busca}
               onChange={e => setBusca(e.target.value)}
             />
           </div>
-          <div className="flex items-center gap-2 bg-white rounded-lg shadow overflow-hidden">
+          <div className="flex items-center justify-between gap-2 bg-white rounded-lg border border-gray-200 overflow-hidden">
             <button
               onClick={handlePrevMonth}
               className="px-3 py-2 bg-gray-50 hover:bg-gray-100 text-gray-600 transition-colors duration-200"
@@ -575,7 +582,8 @@ export default function Devolucoes() {
             />
           </div>
           <select
-            className="bg-white rounded-lg shadow px-3 py-2 text-base"
+            aria-label="Filtrar por departamento"
+            className="bg-white rounded-lg border border-gray-200 px-3 py-2 text-sm"
             value={filtroDepartamento}
             onChange={e => setFiltroDepartamento(e.target.value)}
           >
@@ -585,7 +593,8 @@ export default function Devolucoes() {
             ))}
           </select>
           <select
-            className="bg-white rounded-lg shadow px-3 py-2 text-base"
+            aria-label="Filtrar por status"
+            className="bg-white rounded-lg border border-gray-200 px-3 py-2 text-sm"
             value={filtroStatus}
             onChange={e => setFiltroStatus(e.target.value)}
           >
@@ -595,6 +604,20 @@ export default function Devolucoes() {
             <option>Rejeitada</option>
             <option>Concluída</option>
           </select>
+          <button
+            type="button"
+            onClick={limparFiltros}
+            disabled={!possuiFiltrosAtivos}
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+            title="Limpar filtros"
+          >
+            <RotateCcw className="h-4 w-4" />
+            Limpar
+          </button>
+        </div>
+        <div className="mb-4 flex items-center justify-between text-sm text-gray-500">
+          <span>{devolucoesFiltradas.length} registro(s) encontrado(s)</span>
+          {possuiFiltrosAtivos && <span className="font-medium text-green-700">Filtros ativos</span>}
         </div>
 
         <div className="overflow-x-auto rounded-xl border border-gray-100">

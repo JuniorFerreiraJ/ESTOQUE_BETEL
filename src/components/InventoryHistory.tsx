@@ -32,13 +32,13 @@ export default function InventoryHistory({ history, onUpdate }: InventoryHistory
   const [filterDepartment, setFilterDepartment] = useState<string>('todos');
   const [showTypeDropdown, setShowTypeDropdown] = useState(false);
   const [showDepartmentDropdown, setShowDepartmentDropdown] = useState(false);
-  
+
   // Paginação
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20); // 20 itens por página
 
   // Memoizar departamentos únicos para evitar recálculos
-  const departments = useMemo(() => 
+  const departments = useMemo(() =>
     Array.from(new Set(history.map(item => item.departments?.name || 'Sem Departamento'))),
     [history]
   );
@@ -187,8 +187,8 @@ export default function InventoryHistory({ history, onUpdate }: InventoryHistory
                   <div className="flex items-center gap-2">
                     <Filter className="h-4 w-4 text-gray-500" />
                     <span className="block truncate">
-                      {filterType === 'todos' ? 'Todos os tipos' : 
-                       filterType === 'entrada' ? 'Entradas' : 'Saídas'}
+                      {filterType === 'todos' ? 'Todos os tipos' :
+                        filterType === 'entrada' ? 'Entradas' : 'Saídas'}
                     </span>
                   </div>
                   <ChevronDown className="h-4 w-4 text-gray-400 transition-transform duration-200" />
@@ -226,13 +226,16 @@ export default function InventoryHistory({ history, onUpdate }: InventoryHistory
                   onClick={() => setShowDepartmentDropdown(prev => !prev)}
                   className="w-full bg-white border border-gray-200 rounded-lg py-2.5 px-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 hover:border-green-300 hover:shadow-md flex items-center justify-between"
                 >
-                  <div className="flex items-center gap-2">
-                    <Building className="h-4 w-4 text-gray-500" />
-                    <span className="block truncate">
+                  <div className="flex min-w-0 flex-1 items-center gap-2">
+                    <Building className="h-4 w-4 shrink-0 text-gray-500" />
+                    <span
+                      className="min-w-0 flex-1 truncate text-left"
+                      title={filterDepartment === 'todos' ? 'Todos os departamentos' : filterDepartment}
+                    >
                       {filterDepartment === 'todos' ? 'Todos os departamentos' : filterDepartment}
                     </span>
                   </div>
-                  <ChevronDown className="h-4 w-4 text-gray-400 transition-transform duration-200" />
+                  <ChevronDown className="h-4 w-4 shrink-0 text-gray-400 transition-transform duration-200" />
                 </button>
                 {showDepartmentDropdown && (
                   <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-lg py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm border border-gray-100">
@@ -331,11 +334,10 @@ export default function InventoryHistory({ history, onUpdate }: InventoryHistory
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap">
                       <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                          item.type === 'entrada'
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${item.type === 'entrada'
                             ? 'bg-green-100 text-green-800'
                             : 'bg-red-100 text-red-800'
-                        }`}
+                          }`}
                       >
                         {item.type}
                       </span>
@@ -425,11 +427,10 @@ export default function InventoryHistory({ history, onUpdate }: InventoryHistory
                     <button
                       key={pageNumber}
                       onClick={() => goToPage(pageNumber)}
-                      className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
-                        pageNumber === currentPage
+                      className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${pageNumber === currentPage
                           ? 'bg-green-600 text-white'
                           : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
-                      }`}
+                        }`}
                     >
                       {pageNumber}
                     </button>
