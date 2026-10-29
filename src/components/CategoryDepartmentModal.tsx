@@ -9,6 +9,7 @@ interface CategoryDepartmentModalProps {
   categories: { id: string; name: string }[];
   departments: { id: string; name: string }[];
   initialTab: 'categories' | 'departments';
+  departmentTable?: 'departments' | 'asset_departments';
 }
 
 export default function CategoryDepartmentModal({
@@ -17,7 +18,8 @@ export default function CategoryDepartmentModal({
   onSuccess,
   categories,
   departments,
-  initialTab
+  initialTab,
+  departmentTable = 'departments'
 }: CategoryDepartmentModalProps) {
   const [newCategory, setNewCategory] = useState('');
   const [newDepartment, setNewDepartment] = useState('');
@@ -67,18 +69,18 @@ export default function CategoryDepartmentModal({
     try {
       const request = editingDepartmentId
         ? supabase
-          .from('departments')
+          .from(departmentTable)
           .update({ name: departmentName })
           .eq('id', editingDepartmentId)
         : supabase
-          .from('departments')
+          .from(departmentTable)
           .insert([{ name: departmentName }]);
 
       const { error: supabaseError } = await request;
 
       if (supabaseError) throw supabaseError;
 
-      if (editingDepartmentId) {
+      if (editingDepartmentId && departmentTable === 'asset_departments') {
         const previousDepartment = departments.find(department => department.id === editingDepartmentId);
         if (previousDepartment && previousDepartment.name !== departmentName) {
           const { error: assetsError } = await supabase
@@ -123,10 +125,15 @@ export default function CategoryDepartmentModal({
     setIsDeleting(id);
     try {
       if (type === 'departments') {
-        const { count, error: relationError } = await supabase
-          .from('inventory_items')
+        const relationTable = departmentTable === 'asset_departments' ? 'assets' : 'inventory_items';
+        const relationColumn = departmentTable === 'asset_departments' ? 'department' : 'department_id';
+        const departmentValue = departments.find(department => department.id === id);
+        const relationQuery = supabase
+          .from(relationTable)
           .select('id', { count: 'exact', head: true })
-          .eq('department_id', id);
+          .eq(relationColumn, departmentTable === 'asset_departments' ? departmentValue?.name : id);
+
+        const { count, error: relationError } = await relationQuery;
 
         if (relationError) throw relationError;
         if (count && count > 0) {
@@ -134,20 +141,10 @@ export default function CategoryDepartmentModal({
           return;
         }
 
-        const { count: assetCount, error: assetRelationError } = await supabase
-          .from('assets')
-          .select('id', { count: 'exact', head: true })
-          .eq('department', departments.find(department => department.id === id)?.name);
-
-        if (assetRelationError) throw assetRelationError;
-        if (assetCount && assetCount > 0) {
-          setError('Não é possível remover este departamento enquanto houver ativos vinculados a ele.');
-          return;
-        }
       }
 
       const { error } = await supabase
-        .from(type)
+        .from(type === 'departments' ? departmentTable : type)
         .delete()
         .eq('id', id);
 

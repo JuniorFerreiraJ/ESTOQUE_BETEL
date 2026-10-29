@@ -114,33 +114,15 @@ export default function Ativos() {
   // Buscar departamentos únicos dos ativos (igual ao chips)
   const fetchDepartments = async () => {
     try {
-      const { data: assetDepartments, error: assetDepartmentsError } = await supabase
-        .from('assets')
-        .select('department');
-
-      if (assetDepartmentsError) throw assetDepartmentsError;
-
-      const assetNames = Array.from(new Set(
-        assetDepartments?.map(item => item.department?.trim()).filter(Boolean) ?? []
-      ));
-
-      if (assetNames.length > 0) {
-        const { error: syncError } = await supabase
-          .from('departments')
-          .upsert(assetNames.map(name => ({ name })), { onConflict: 'name', ignoreDuplicates: true });
-
-        if (syncError) throw syncError;
-      }
-
       const { data, error } = await supabase
-        .from('departments')
+        .from('asset_departments')
         .select('id, name')
         .order('name');
 
       if (error) throw error;
 
       const registeredNames = data?.map(item => item.name) ?? [];
-      const allDepartmentNames = Array.from(new Set([...registeredNames, ...assetNames])).sort();
+      const allDepartmentNames = Array.from(new Set(registeredNames)).sort();
 
       setDepartmentRecords(data ?? []);
       setDepartments(allDepartmentNames);
@@ -989,6 +971,7 @@ export default function Ativos() {
         categories={[]}
         departments={departmentRecords}
         initialTab="departments"
+        departmentTable="asset_departments"
       />
     </div>
   );
