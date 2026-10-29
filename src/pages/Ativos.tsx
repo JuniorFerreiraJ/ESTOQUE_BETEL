@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { 
+import {
   Laptop,
   Smartphone,
   Tablet,
@@ -19,9 +19,12 @@ import {
   RefreshCw,
   Clock,
   AlertCircle,
-  KeyRound
+  KeyRound,
+  Settings,
+  Building
 } from 'lucide-react';
 import AddAssetModal from '../components/AddAssetModal';
+import CategoryDepartmentModal from '../components/CategoryDepartmentModal';
 import { supabase } from '../lib/supabaseClient';
 
 interface Asset {
@@ -50,14 +53,22 @@ export default function Ativos() {
   const [isDeptOpen, setIsDeptOpen] = useState(false);
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showDepartmentModal, setShowDepartmentModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [viewAsset, setViewAsset] = useState<Asset | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
-  const assetTypes = ['notebook', 'celular', 'tablet', 'outros'];
+  const assetTypes = Array.from(new Set([
+    'notebook',
+    'celular',
+    'tablet',
+    'outros',
+    ...assets.map(asset => asset.assetType).filter(Boolean)
+  ]));
   const [departments, setDepartments] = useState<string[]>([]);
+  const [departmentRecords, setDepartmentRecords] = useState<{ id: string; name: string }[]>([]);
   const statuses = ['ativo', 'inativo', 'manutencao', 'fora_uso'];
 
   // Buscar ativos do banco de dados
@@ -103,17 +114,36 @@ export default function Ativos() {
   // Buscar departamentos únicos dos ativos (igual ao chips)
   const fetchDepartments = async () => {
     try {
-      const { data, error } = await supabase
+      const { data: assetDepartments, error: assetDepartmentsError } = await supabase
         .from('assets')
-        .select('department')
-        .order('department');
+        .select('department');
+
+      if (assetDepartmentsError) throw assetDepartmentsError;
+
+      const assetNames = Array.from(new Set(
+        assetDepartments?.map(item => item.department?.trim()).filter(Boolean) ?? []
+      ));
+
+      if (assetNames.length > 0) {
+        const { error: syncError } = await supabase
+          .from('departments')
+          .upsert(assetNames.map(name => ({ name })), { onConflict: 'name', ignoreDuplicates: true });
+
+        if (syncError) throw syncError;
+      }
+
+      const { data, error } = await supabase
+        .from('departments')
+        .select('id, name')
+        .order('name');
 
       if (error) throw error;
-      
-      if (data) {
-        const uniqueDepartments = Array.from(new Set(data.map(item => item.department)));
-        setDepartments(uniqueDepartments);
-      }
+
+      const registeredNames = data?.map(item => item.name) ?? [];
+      const allDepartmentNames = Array.from(new Set([...registeredNames, ...assetNames])).sort();
+
+      setDepartmentRecords(data ?? []);
+      setDepartments(allDepartmentNames);
     } catch (error: any) {
       console.error('Erro ao buscar departamentos:', error);
     }
@@ -170,9 +200,9 @@ export default function Ativos() {
 
   const filteredAssets = assets.filter(asset => {
     const matchesSearch = asset.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         asset.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         asset.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         asset.currentUser.toLowerCase().includes(searchTerm.toLowerCase());
+      asset.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      asset.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      asset.currentUser.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = !filterType || asset.assetType === filterType;
     const matchesDepartment = !filterDepartment || asset.department === filterDepartment;
     const matchesStatus = !filterStatus || asset.status === filterStatus;
@@ -202,19 +232,19 @@ export default function Ativos() {
   // Calcular estatísticas baseadas nos filtros
   const getFilteredAssets = () => {
     let filtered = assets;
-    
+
     if (filterType) {
       filtered = filtered.filter(asset => asset.assetType === filterType);
     }
-    
+
     if (filterDepartment) {
       filtered = filtered.filter(asset => asset.department === filterDepartment);
     }
-    
+
     if (filterStatus) {
       filtered = filtered.filter(asset => asset.status === filterStatus);
     }
-    
+
     return filtered;
   };
 
@@ -255,7 +285,7 @@ export default function Ativos() {
           <AlertCircle className="w-12 h-12 text-red-600 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">Erro ao carregar ativos</h3>
           <p className="text-gray-600 mb-4">{error}</p>
-          <button 
+          <button
             onClick={fetchAssets}
             className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
           >
@@ -287,7 +317,14 @@ export default function Ativos() {
               <RefreshCw className="h-5 w-5 mr-2" />
               Atualizar
             </button>
-            <button 
+            <button
+              onClick={() => setShowDepartmentModal(true)}
+              className="bg-white text-blue-600 px-6 py-3 rounded-xl hover:bg-blue-50 flex items-center shadow-md hover:shadow-lg transition-all duration-200 border border-blue-200"
+            >
+              <Building className="h-5 w-5 mr-2" />
+              Departamentos
+            </button>
+            <button
               onClick={() => setShowAddModal(true)}
               className="bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-3 rounded-xl hover:from-green-700 hover:to-green-800 flex items-center shadow-lg hover:shadow-xl transition-all duration-200"
             >
@@ -469,10 +506,10 @@ export default function Ativos() {
                     <Laptop className="w-4 h-4" />
                   </span>
                   {filterType ? (
-                    filterType === 'notebook' ? 'Notebook' : 
-                    filterType === 'celular' ? 'Celular' : 
-                    filterType === 'tablet' ? 'Tablet' : 
-                    filterType === 'outros' ? 'Outros' : filterType
+                    filterType === 'notebook' ? 'Notebook' :
+                      filterType === 'celular' ? 'Celular' :
+                        filterType === 'tablet' ? 'Tablet' :
+                          filterType === 'outros' ? 'Outros' : filterType
                   ) : 'Todos os tipos'}
                 </span>
                 <svg
@@ -520,10 +557,10 @@ export default function Ativos() {
                             {type === 'outros' && <Laptop className="w-4 h-4" />}
                           </span>
                           <span className="truncate capitalize">
-                            {type === 'notebook' ? 'Notebook' : 
-                             type === 'celular' ? 'Celular' : 
-                             type === 'tablet' ? 'Tablet' : 
-                             type === 'outros' ? 'Outros' : type}
+                            {type === 'notebook' ? 'Notebook' :
+                              type === 'celular' ? 'Celular' :
+                                type === 'tablet' ? 'Tablet' :
+                                  type === 'outros' ? 'Outros' : type}
                           </span>
                         </span>
                         {filterType === type && (
@@ -628,10 +665,10 @@ export default function Ativos() {
                     <CheckCircle className="w-4 h-4" />
                   </span>
                   {filterStatus ? (
-                    filterStatus === 'ativo' ? 'Ativo' : 
-                    filterStatus === 'inativo' ? 'Inativo' : 
-                    filterStatus === 'manutencao' ? 'Em Manutenção' : 
-                    filterStatus === 'fora_uso' ? 'Fora de Uso' : filterStatus
+                    filterStatus === 'ativo' ? 'Ativo' :
+                      filterStatus === 'inativo' ? 'Inativo' :
+                        filterStatus === 'manutencao' ? 'Em Manutenção' :
+                          filterStatus === 'fora_uso' ? 'Fora de Uso' : filterStatus
                   ) : 'Todos os status'}
                 </span>
                 <svg
@@ -676,10 +713,10 @@ export default function Ativos() {
                             <CheckCircle className="w-4 h-4" />
                           </span>
                           <span className="truncate capitalize">
-                            {status === 'ativo' ? 'Ativo' : 
-                             status === 'inativo' ? 'Inativo' : 
-                             status === 'manutencao' ? 'Em Manutenção' : 
-                             status === 'fora_uso' ? 'Fora de Uso' : status}
+                            {status === 'ativo' ? 'Ativo' :
+                              status === 'inativo' ? 'Inativo' :
+                                status === 'manutencao' ? 'Em Manutenção' :
+                                  status === 'fora_uso' ? 'Fora de Uso' : status}
                           </span>
                         </span>
                         {filterStatus === status && (
@@ -781,11 +818,10 @@ export default function Ativos() {
                     <td className="px-2 py-3 text-center">
                       <div className="flex flex-col items-center">
                         {hasWarranty ? (
-                          <span className={`text-xs font-medium ${
-                            isWarrantyExpired ? 'text-red-600' : 
-                            isWarrantyExpiringSoon ? 'text-yellow-600' : 
-                            'text-gray-600'
-                          }`}>
+                          <span className={`text-xs font-medium ${isWarrantyExpired ? 'text-red-600' :
+                              isWarrantyExpiringSoon ? 'text-yellow-600' :
+                                'text-gray-600'
+                            }`}>
                             {warrantyExpiry && warrantyExpiry.toLocaleDateString('pt-BR')}
                           </span>
                         ) : (
@@ -811,16 +847,16 @@ export default function Ativos() {
                         >
                           <Eye className="h-3 w-3" />
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleEditAsset(asset)}
-                          className="p-1 text-green-600 hover:bg-green-100 rounded-lg transition-colors duration-200" 
+                          className="p-1 text-green-600 hover:bg-green-100 rounded-lg transition-colors duration-200"
                           title="Editar"
                         >
                           <Edit className="h-3 w-3" />
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleDeleteAsset(asset.id)}
-                          className="p-1 text-red-600 hover:bg-red-100 rounded-lg transition-colors duration-200" 
+                          className="p-1 text-red-600 hover:bg-red-100 rounded-lg transition-colors duration-200"
                           title="Excluir"
                         >
                           <Trash2 className="h-3 w-3" />
@@ -842,7 +878,7 @@ export default function Ativos() {
           </div>
           <h3 className="text-xl font-semibold text-gray-900 mb-3">Nenhum ativo encontrado</h3>
           <p className="text-gray-500 mb-6">Tente ajustar os filtros ou adicione um novo ativo ao sistema.</p>
-          <button 
+          <button
             onClick={() => setShowAddModal(true)}
             className="bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-3 rounded-xl hover:from-green-700 hover:to-green-800 flex items-center mx-auto shadow-lg hover:shadow-xl transition-all duration-200"
           >
@@ -940,6 +976,19 @@ export default function Ativos() {
         onSuccess={handleModalSuccess}
         editAsset={selectedAsset}
         departments={departments}
+        assetTypes={assetTypes}
+      />
+
+      <CategoryDepartmentModal
+        isOpen={showDepartmentModal}
+        onClose={() => setShowDepartmentModal(false)}
+        onSuccess={() => {
+          fetchDepartments();
+          fetchAssets();
+        }}
+        categories={[]}
+        departments={departmentRecords}
+        initialTab="departments"
       />
     </div>
   );

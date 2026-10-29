@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Plus, Trash2, Building, Tag } from 'lucide-react';
+import { X, Plus, Trash2, Building, Tag, Pencil, Check, Ban } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
 interface CategoryDepartmentModalProps {
@@ -24,6 +24,7 @@ export default function CategoryDepartmentModal({
   const [error, setError] = useState('');
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [editingDepartmentId, setEditingDepartmentId] = useState<string | null>(null);
 
   const handleAddCategory = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,31 +56,96 @@ export default function CategoryDepartmentModal({
     e.preventDefault();
     setError('');
 
-    if (!newDepartment.trim()) {
+    const departmentName = newDepartment.trim().replace(/\s+/g, ' ').toUpperCase();
+
+    if (!departmentName) {
       setError('Por favor, insira um nome para o departamento');
       return;
     }
 
     setIsSaving(true);
     try {
-      const { error: supabaseError } = await supabase
-        .from('departments')
-        .insert([{ name: newDepartment.trim().toUpperCase() }]);
+      const request = editingDepartmentId
+        ? supabase
+          .from('departments')
+          .update({ name: departmentName })
+          .eq('id', editingDepartmentId)
+        : supabase
+          .from('departments')
+          .insert([{ name: departmentName }]);
+
+      const { error: supabaseError } = await request;
 
       if (supabaseError) throw supabaseError;
 
+      if (editingDepartmentId) {
+        const previousDepartment = departments.find(department => department.id === editingDepartmentId);
+        if (previousDepartment && previousDepartment.name !== departmentName) {
+          const { error: assetsError } = await supabase
+            .from('assets')
+            .update({ department: departmentName })
+            .eq('department', previousDepartment.name);
+
+          if (assetsError) throw assetsError;
+        }
+      }
+
       setNewDepartment('');
+      setEditingDepartmentId(null);
       onSuccess();
-    } catch (err) {
-      setError('Erro ao adicionar departamento. Verifique se já não existe um departamento com este nome.');
+    } catch (err: any) {
+      setError(err?.code === '23505'
+        ? 'Este departamento já existe.'
+        : `Erro ao ${editingDepartmentId ? 'editar' : 'adicionar'} departamento.`);
     } finally {
       setIsSaving(false);
     }
   };
 
+  const startEditingDepartment = (department: { id: string; name: string }) => {
+    setError('');
+    setNewDepartment(department.name);
+    setEditingDepartmentId(department.id);
+  };
+
+  const cancelEditingDepartment = () => {
+    setNewDepartment('');
+    setEditingDepartmentId(null);
+    setError('');
+  };
+
   const handleDelete = async (id: string, type: 'categories' | 'departments') => {
+    if (type === 'departments' && !confirm('Tem certeza que deseja remover este departamento?')) {
+      return;
+    }
+
+    setError('');
     setIsDeleting(id);
     try {
+      if (type === 'departments') {
+        const { count, error: relationError } = await supabase
+          .from('inventory_items')
+          .select('id', { count: 'exact', head: true })
+          .eq('department_id', id);
+
+        if (relationError) throw relationError;
+        if (count && count > 0) {
+          setError('Não é possível remover este departamento enquanto houver itens vinculados a ele.');
+          return;
+        }
+
+        const { count: assetCount, error: assetRelationError } = await supabase
+          .from('assets')
+          .select('id', { count: 'exact', head: true })
+          .eq('department', departments.find(department => department.id === id)?.name);
+
+        if (assetRelationError) throw assetRelationError;
+        if (assetCount && assetCount > 0) {
+          setError('Não é possível remover este departamento enquanto houver ativos vinculados a ele.');
+          return;
+        }
+      }
+
       const { error } = await supabase
         .from(type)
         .delete()
@@ -198,8 +264,18 @@ export default function CategoryDepartmentModal({
                       className="inline-flex shrink-0 items-center justify-center rounded-lg bg-blue-600 px-5 py-3 text-base font-medium text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       <Plus className="h-5 w-5 mr-2" />
-                      {isSaving ? 'Salvando...' : 'Adicionar'}
+                      {isSaving ? 'Salvando...' : editingDepartmentId ? 'Salvar alteração' : 'Adicionar'}
                     </button>
+                    {editingDepartmentId && (
+                      <button
+                        type="button"
+                        onClick={cancelEditingDepartment}
+                        className="inline-flex shrink-0 items-center justify-center rounded-lg border border-gray-300 px-5 py-3 text-base font-medium text-gray-700 hover:bg-gray-50"
+                      >
+                        <Ban className="mr-2 h-5 w-5" />
+                        Cancelar
+                      </button>
+                    )}
                   </div>
                 </div>
               </form>
@@ -213,15 +289,26 @@ export default function CategoryDepartmentModal({
                       className="group p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg flex items-center justify-between transition-all duration-200 hover:shadow-md"
                     >
                       <span className="text-gray-700 font-medium">{department.name}</span>
-                      <button
-                        onClick={() => handleDelete(department.id, 'departments')}
-                        type="button"
-                        aria-label={`Excluir departamento ${department.name}`}
-                        disabled={isDeleting === department.id}
-                        className="p-2 text-gray-400 hover:text-red-500 transition-colors duration-200 opacity-0 group-hover:opacity-100"
-                      >
-                        <Trash2 className="h-5 w-5" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => startEditingDepartment(department)}
+                          type="button"
+                          aria-label={`Editar departamento ${department.name}`}
+                          disabled={isSaving || isDeleting === department.id}
+                          className="p-2 text-gray-400 hover:text-blue-600"
+                        >
+                          {editingDepartmentId === department.id ? <Check className="h-5 w-5" /> : <Pencil className="h-5 w-5" />}
+                        </button>
+                        <button
+                          onClick={() => handleDelete(department.id, 'departments')}
+                          type="button"
+                          aria-label={`Excluir departamento ${department.name}`}
+                          disabled={isDeleting === department.id || isSaving}
+                          className="p-2 text-gray-400 hover:text-red-500"
+                        >
+                          <Trash2 className="h-5 w-5" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>

@@ -7,11 +7,13 @@ interface AddAssetModalProps {
   onClose: () => void;
   onSuccess: () => void;
   editAsset?: any;
-  departments?: any[];
+  departments?: string[];
+  assetTypes?: string[];
 }
 
 interface FormData {
   assetType: string;
+  customAssetType: string;
   brand: string;
   model: string;
   serialNumber: string;
@@ -24,9 +26,10 @@ interface FormData {
   password: string;
 }
 
-export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, departments = [] }: AddAssetModalProps) {
+export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, departments = [], assetTypes: availableAssetTypes }: AddAssetModalProps) {
   const [formData, setFormData] = useState<FormData>({
     assetType: 'notebook',
+    customAssetType: '',
     brand: '',
     model: '',
     serialNumber: '',
@@ -50,7 +53,9 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
   const [transferDepartment, setTransferDepartment] = useState('');
   const [quickActionLoading, setQuickActionLoading] = useState(false);
 
-  const assetTypes = ['notebook', 'celular', 'tablet', 'outros'];
+  const assetTypes = availableAssetTypes?.length
+    ? availableAssetTypes
+    : ['notebook', 'celular', 'tablet', 'outros'];
   const statuses = ['ativo', 'inativo', 'manutencao', 'fora_uso'];
 
   // Reset form when modal opens/closes or when editing
@@ -59,6 +64,7 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
       if (editAsset) {
         setFormData({
           assetType: editAsset.asset_type || editAsset.assetType || 'notebook',
+          customAssetType: '',
           brand: editAsset.brand ?? '',
           model: editAsset.model ?? '',
           serialNumber: editAsset.serial_number || editAsset.serialNumber || '',
@@ -76,6 +82,7 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
       } else {
         setFormData({
           assetType: 'notebook',
+          customAssetType: '',
           brand: '',
           model: '',
           serialNumber: '',
@@ -101,6 +108,9 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
     const errors: Record<string, string> = {};
 
     // Validar campos obrigatórios
+    if (formData.assetType === 'custom' && !formData.customAssetType.trim()) {
+      errors.assetType = 'Informe o novo tipo de ativo';
+    }
     if (!formData.brand.trim()) errors.brand = 'Marca é obrigatória';
     if (!formData.model.trim()) errors.model = 'Modelo é obrigatório';
     if (!formData.serialNumber.trim()) errors.serialNumber = 'Número de série é obrigatório';
@@ -116,7 +126,7 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
     if (formData.purchaseDate && formData.warrantyExpiry) {
       const deliveryDate = new Date(formData.purchaseDate);
       const warrantyDate = new Date(formData.warrantyExpiry);
-      
+
       if (warrantyDate <= deliveryDate) {
         errors.warrantyExpiry = 'Garantia deve ser posterior à data de entrega';
       }
@@ -137,7 +147,7 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
@@ -147,7 +157,9 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
 
     try {
       const assetData = {
-        asset_type: formData.assetType,
+        asset_type: (formData.assetType === 'custom'
+          ? formData.customAssetType
+          : formData.assetType).trim().toLowerCase(),
         brand: formData.brand.trim(),
         model: formData.model.trim(),
         serial_number: formData.serialNumber.trim(),
@@ -213,7 +225,9 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
 
     } catch (error: any) {
       console.error('Erro ao salvar ativo:', error);
-      setError(error.message || 'Erro ao salvar ativo');
+      setError(error.code === '23514' && error.message?.includes('assets_asset_type_check')
+        ? 'O banco ainda não foi atualizado para aceitar tipos personalizados. Aplique a migration 20261029121000_allow_custom_asset_types.sql no Supabase.'
+        : error.message || 'Erro ao salvar ativo');
     } finally {
       setLoading(false);
     }
@@ -365,22 +379,24 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
                   name="assetType"
                   value={formData.assetType}
                   onChange={handleChange}
-                  className={`w-full border rounded-xl px-4 py-3 pr-10 focus:outline-none focus:ring-2 transition-all duration-200 appearance-none cursor-pointer ${
-                    validationErrors.assetType 
-                      ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
-                      : 'border-gray-300 focus:ring-green-500 focus:border-green-500'
-                  }`}
+                  className={`w-full border rounded-xl px-4 py-3 pr-10 focus:outline-none focus:ring-2 transition-all duration-200 appearance-none cursor-pointer ${validationErrors.assetType
+                    ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
+                    : 'border-gray-300 focus:ring-green-500 focus:border-green-500'
+                    }`}
                   required
                 >
                   <option value="">Selecione o tipo</option>
                   {assetTypes.map(type => (
                     <option key={type} value={type} className="capitalize">
-                      {type === 'notebook' ? 'Notebook' : 
-                       type === 'celular' ? 'Celular' : 
-                       type === 'tablet' ? 'Tablet' : 
-                       type === 'outros' ? 'Outros' : type}
+                      {type === 'notebook' ? 'Notebook' :
+                        type === 'celular' ? 'Celular' :
+                          type === 'tablet' ? 'Tablet' :
+                            type === 'outros' ? 'Outros' : type}
                     </option>
                   ))}
+                  {!assetTypes.includes(formData.assetType) && formData.assetType !== 'custom' && (
+                    <option value={formData.assetType}>{formData.assetType}</option>
+                  )}
                   <option value="custom">+ Adicionar novo tipo</option>
                 </select>
                 <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
@@ -404,15 +420,14 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
                 <input
                   type="text"
                   name="customAssetType"
+                  value={formData.customAssetType}
                   placeholder="Ex: Monitor, Impressora, Roteador..."
                   className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
                   onChange={(e) => {
-                    if (e.target.value) {
-                      setFormData(prev => ({
-                        ...prev,
-                        assetType: e.target.value.toLowerCase()
-                      }));
-                    }
+                    setFormData(prev => ({
+                      ...prev,
+                      customAssetType: e.target.value
+                    }));
                   }}
                 />
               </div>
@@ -430,11 +445,10 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
                 value={formData.department}
                 onChange={handleChange}
                 placeholder="Digite o departamento (ex: TI, Comercial, etc.)"
-                className={`w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-200 ${
-                  validationErrors.department 
-                    ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
-                    : 'border-gray-300 focus:ring-green-500 focus:border-green-500'
-                }`}
+                className={`w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-200 ${validationErrors.department
+                  ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
+                  : 'border-gray-300 focus:ring-green-500 focus:border-green-500'
+                  }`}
                 required
               />
               {validationErrors.department && (
@@ -446,12 +460,12 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
                   <div className="flex flex-wrap gap-2">
                     {departments.map(dept => (
                       <button
-                        key={dept.id}
+                        key={dept}
                         type="button"
-                        onClick={() => setFormData({...formData, department: dept.name})}
+                        onClick={() => setFormData({ ...formData, department: dept })}
                         className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-full hover:bg-green-200 transition-colors"
                       >
-                        {dept.name}
+                        {dept}
                       </button>
                     ))}
                   </div>
@@ -470,11 +484,10 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
                 value={formData.brand}
                 onChange={handleChange}
                 placeholder="Ex: Dell, Samsung, Apple"
-                className={`w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-200 ${
-                  validationErrors.brand 
-                    ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
-                    : 'border-gray-300 focus:ring-green-500 focus:border-green-500'
-                }`}
+                className={`w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-200 ${validationErrors.brand
+                  ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
+                  : 'border-gray-300 focus:ring-green-500 focus:border-green-500'
+                  }`}
                 required
               />
               {validationErrors.brand && (
@@ -493,11 +506,10 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
                 value={formData.model}
                 onChange={handleChange}
                 placeholder="Ex: Inspiron 15 3000"
-                className={`w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-200 ${
-                  validationErrors.model 
-                    ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
-                    : 'border-gray-300 focus:ring-green-500 focus:border-green-500'
-                }`}
+                className={`w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-200 ${validationErrors.model
+                  ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
+                  : 'border-gray-300 focus:ring-green-500 focus:border-green-500'
+                  }`}
                 required
               />
               {validationErrors.model && (
@@ -516,11 +528,10 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
                 value={formData.serialNumber}
                 onChange={handleChange}
                 placeholder="Ex: DL123456789"
-                className={`w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-200 ${
-                  validationErrors.serialNumber 
-                    ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
-                    : 'border-gray-300 focus:ring-green-500 focus:border-green-500'
-                }`}
+                className={`w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-200 ${validationErrors.serialNumber
+                  ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
+                  : 'border-gray-300 focus:ring-green-500 focus:border-green-500'
+                  }`}
                 required
               />
               {validationErrors.serialNumber && (
@@ -540,11 +551,10 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
                 value={formData.currentUser}
                 onChange={handleChange}
                 placeholder="Nome do usuário"
-                className={`w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-200 ${
-                  validationErrors.currentUser 
-                    ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
-                    : 'border-gray-300 focus:ring-green-500 focus:border-green-500'
-                }`}
+                className={`w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-200 ${validationErrors.currentUser
+                  ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
+                  : 'border-gray-300 focus:ring-green-500 focus:border-green-500'
+                  }`}
                 required
               />
               {validationErrors.currentUser && (
@@ -583,10 +593,10 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
                 >
                   {statuses.map(status => (
                     <option key={status} value={status} className="capitalize">
-                      {status === 'ativo' ? 'Ativo' : 
-                       status === 'inativo' ? 'Inativo' : 
-                       status === 'manutencao' ? 'Em Manutenção' : 
-                       status === 'fora_uso' ? 'Fora de Uso' : status}
+                      {status === 'ativo' ? 'Ativo' :
+                        status === 'inativo' ? 'Inativo' :
+                          status === 'manutencao' ? 'Em Manutenção' :
+                            status === 'fora_uso' ? 'Fora de Uso' : status}
                     </option>
                   ))}
                 </select>
@@ -609,11 +619,10 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
                 name="purchaseDate"
                 value={formData.purchaseDate}
                 onChange={handleChange}
-                className={`w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-200 ${
-                  validationErrors.purchaseDate 
-                    ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
-                    : 'border-gray-300 focus:ring-green-500 focus:border-green-500'
-                }`}
+                className={`w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-200 ${validationErrors.purchaseDate
+                  ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
+                  : 'border-gray-300 focus:ring-green-500 focus:border-green-500'
+                  }`}
                 required
               />
               {validationErrors.purchaseDate && (
@@ -635,11 +644,10 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
                 placeholder="2500.00"
                 step="0.01"
                 min="0"
-                className={`w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-200 ${
-                  validationErrors.purchaseValue 
-                    ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
-                    : 'border-gray-300 focus:ring-green-500 focus:border-green-500'
-                }`}
+                className={`w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-200 ${validationErrors.purchaseValue
+                  ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
+                  : 'border-gray-300 focus:ring-green-500 focus:border-green-500'
+                  }`}
                 required
               />
               {validationErrors.purchaseValue && (
@@ -658,11 +666,10 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
                 name="warrantyExpiry"
                 value={formData.warrantyExpiry}
                 onChange={handleChange}
-                className={`w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-200 ${
-                  validationErrors.warrantyExpiry 
-                    ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
-                    : 'border-gray-300 focus:ring-green-500 focus:border-green-500'
-                }`}
+                className={`w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 transition-all duration-200 ${validationErrors.warrantyExpiry
+                  ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
+                  : 'border-gray-300 focus:ring-green-500 focus:border-green-500'
+                  }`}
               />
               {validationErrors.warrantyExpiry && (
                 <p className="text-red-600 text-sm mt-1">{validationErrors.warrantyExpiry}</p>
@@ -732,31 +739,31 @@ export default function AddAssetModal({ isOpen, onClose, onSuccess, editAsset, d
             )}
 
             <div className="flex justify-end space-x-4">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={loading}
-              className="px-6 py-3 text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={loading || success}
-              className="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {loading && (
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              )}
-              {loading 
-                ? 'Salvando...' 
-                : success 
-                  ? 'Salvo!' 
-                  : editAsset 
-                    ? 'Atualizar Ativo' 
-                    : 'Adicionar Ativo'
-              }
-            </button>
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={loading}
+                className="px-6 py-3 text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={loading || success}
+                className="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {loading && (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                )}
+                {loading
+                  ? 'Salvando...'
+                  : success
+                    ? 'Salvo!'
+                    : editAsset
+                      ? 'Atualizar Ativo'
+                      : 'Adicionar Ativo'
+                }
+              </button>
             </div>
           </div>
         </form>
