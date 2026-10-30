@@ -78,7 +78,19 @@ export default function CategoryDepartmentModal({
 
       const { error: supabaseError } = await request;
 
-      if (supabaseError) throw supabaseError;
+      if (supabaseError?.code === '42P01' && departmentTable === 'asset_departments' && editingDepartmentId) {
+        const previousDepartment = departments.find(department => department.id === editingDepartmentId);
+        if (!previousDepartment) throw supabaseError;
+
+        const { error: assetsError } = await supabase
+          .from('assets')
+          .update({ department: departmentName })
+          .eq('department', previousDepartment.name);
+
+        if (assetsError) throw assetsError;
+      } else if (supabaseError) {
+        throw supabaseError;
+      }
 
       if (editingDepartmentId && departmentTable === 'asset_departments') {
         const previousDepartment = departments.find(department => department.id === editingDepartmentId);

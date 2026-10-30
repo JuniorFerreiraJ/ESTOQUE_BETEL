@@ -71,6 +71,9 @@ export default function Ativos() {
   const [departmentRecords, setDepartmentRecords] = useState<{ id: string; name: string }[]>([]);
   const statuses = ['ativo', 'inativo', 'manutencao', 'fora_uso'];
 
+  const normalizeDepartment = (department: string | null | undefined) =>
+    (department ?? '').trim().replace(/\s+/g, ' ').toLocaleUpperCase('pt-BR');
+
   // Buscar ativos do banco de dados
   const fetchAssets = async () => {
     try {
@@ -119,10 +122,53 @@ export default function Ativos() {
         .select('id, name')
         .order('name');
 
-      if (error) throw error;
+      if (error) {
+        // Compatibilidade com ambientes onde a migration da tabela ainda não foi aplicada.
+        const { data: assetsWithDepartments, error: assetsError } = await supabase
+          .from('assets')
+          .select('department')
+          .not('department', 'is', null);
+
+        if (assetsError) throw error;
+
+        const names = Array.from(new Set(
+          (assetsWithDepartments ?? [])
+            .map(asset => asset.department?.trim())
+            .filter(Boolean)
+        )).sort();
+
+        setDepartmentRecords(names.map(name => ({ id: name, name })));
+        setDepartments(names);
+        return;
+      }
 
       const registeredNames = data?.map(item => item.name) ?? [];
       const allDepartmentNames = Array.from(new Set(registeredNames)).sort();
+
+      if (allDepartmentNames.length === 0) {
+        const { data: assetsWithDepartments, error: assetsError } = await supabase
+          .from('assets')
+          .select('department')
+          .not('department', 'is', null);
+
+        if (assetsError) throw assetsError;
+
+        const names = Array.from(new Set(
+          (assetsWithDepartments ?? [])
+            .map(asset => asset.department?.trim())
+            .filter(Boolean)
+        )).sort();
+
+        const { data: synchronizedDepartments } = await supabase
+          .from('asset_departments')
+          .upsert(names.map(name => ({ name })), { onConflict: 'name' })
+          .select('id, name')
+          .order('name');
+
+        setDepartmentRecords(synchronizedDepartments ?? []);
+        setDepartments(synchronizedDepartments?.map(department => department.name) ?? names);
+        return;
+      }
 
       setDepartmentRecords(data ?? []);
       setDepartments(allDepartmentNames);
@@ -186,7 +232,8 @@ export default function Ativos() {
       asset.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
       asset.currentUser.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = !filterType || asset.assetType === filterType;
-    const matchesDepartment = !filterDepartment || asset.department === filterDepartment;
+    const matchesDepartment = !filterDepartment ||
+      normalizeDepartment(asset.department) === normalizeDepartment(filterDepartment);
     const matchesStatus = !filterStatus || asset.status === filterStatus;
 
     return matchesSearch && matchesType && matchesDepartment && matchesStatus;
@@ -220,7 +267,9 @@ export default function Ativos() {
     }
 
     if (filterDepartment) {
-      filtered = filtered.filter(asset => asset.department === filterDepartment);
+      filtered = filtered.filter(asset =>
+        normalizeDepartment(asset.department) === normalizeDepartment(filterDepartment)
+      );
     }
 
     if (filterStatus) {
@@ -801,8 +850,8 @@ export default function Ativos() {
                       <div className="flex flex-col items-center">
                         {hasWarranty ? (
                           <span className={`text-xs font-medium ${isWarrantyExpired ? 'text-red-600' :
-                              isWarrantyExpiringSoon ? 'text-yellow-600' :
-                                'text-gray-600'
+                            isWarrantyExpiringSoon ? 'text-yellow-600' :
+                              'text-gray-600'
                             }`}>
                             {warrantyExpiry && warrantyExpiry.toLocaleDateString('pt-BR')}
                           </span>
